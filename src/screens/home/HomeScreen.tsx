@@ -76,8 +76,16 @@ export const HomeScreen: React.FC = () => {
     return (
         <ScreenContainer>
             <View style={styles.header}>
-                <Text style={styles.greeting}>Olá, {profile?.name || 'Membro'}</Text>
-                <Text style={styles.subtitle}>Seus Ministérios</Text>
+                <View>
+                    <Text style={styles.greeting}>Olá, {profile?.name || 'Membro'}</Text>
+                    <Text style={styles.subtitle}>Seus Ministérios</Text>
+                </View>
+                <TouchableOpacity
+                    style={styles.announcementButton}
+                    onPress={() => navigation.navigate('Announcements')}
+                >
+                    <Text style={styles.announcementButtonText}>🔔 Avisos</Text>
+                </TouchableOpacity>
             </View>
 
             {loading ? (
@@ -103,6 +111,9 @@ const styles = StyleSheet.create({
     header: {
         padding: spacing.lg,
         paddingBottom: spacing.sm,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
     },
     greeting: {
         fontSize: typography.sizes['2xl'],
@@ -113,6 +124,19 @@ const styles = StyleSheet.create({
         fontSize: typography.sizes.md,
         color: colors.textSecondary,
         marginTop: spacing.xs,
+    },
+    announcementButton: {
+        backgroundColor: colors.backgroundCard,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.xs,
+        borderRadius: borderRadius.full,
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    announcementButtonText: {
+        color: colors.text,
+        fontWeight: typography.weights.medium,
+        fontSize: typography.sizes.sm,
     },
     listContent: {
         padding: spacing.lg,

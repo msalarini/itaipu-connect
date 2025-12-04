@@ -7,6 +7,9 @@ import { EventsScreen } from '../screens/events/EventsScreen';
 import { ProfileScreen } from '../screens/profile/ProfileScreen';
 import { MinistryChannelScreen } from '../screens/ministries/MinistryChannelScreen';
 import { ThreadScreen } from '../screens/ministries/ThreadScreen';
+import { CreateEventScreen } from '../screens/events/CreateEventScreen';
+import { AnnouncementsScreen } from '../screens/announcements/AnnouncementsScreen';
+import { CreateAnnouncementScreen } from '../screens/announcements/CreateAnnouncementScreen';
 import { colors } from '../theme';
 
 // Tipos para as Tabs
@@ -22,6 +25,9 @@ export type AppStackParamList = {
     MainTabs: undefined;
     MinistryChannel: { ministryId: string; ministryName: string };
     Thread: { rootMessageId: string; ministryId: string };
+    CreateEvent: undefined;
+    Announcements: undefined;
+    CreateAnnouncement: undefined;
 };
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -85,6 +91,36 @@ export const AppNavigator: React.FC = () => {
                 options={{
                     headerShown: true,
                     title: 'Thread',
+                    headerStyle: { backgroundColor: colors.backgroundCard },
+                    headerTintColor: colors.text
+                }}
+            />
+            <Stack.Screen
+                name="CreateEvent"
+                component={CreateEventScreen}
+                options={{
+                    headerShown: true,
+                    title: 'Novo Evento',
+                    headerStyle: { backgroundColor: colors.backgroundCard },
+                    headerTintColor: colors.text
+                }}
+            />
+            <Stack.Screen
+                name="Announcements"
+                component={AnnouncementsScreen}
+                options={{
+                    headerShown: true,
+                    title: 'Avisos',
+                    headerStyle: { backgroundColor: colors.backgroundCard },
+                    headerTintColor: colors.text
+                }}
+            />
+            <Stack.Screen
+                name="CreateAnnouncement"
+                component={CreateAnnouncementScreen}
+                options={{
+                    headerShown: true,
+                    title: 'Novo Aviso',
                     headerStyle: { backgroundColor: colors.backgroundCard },
                     headerTintColor: colors.text
                 }}

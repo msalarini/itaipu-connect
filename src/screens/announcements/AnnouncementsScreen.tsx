@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
-import { ScreenContainer, AppButton } from '../../components';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { ScreenContainer } from '../../components';
 import { colors, spacing, typography, borderRadius } from '../../theme';
 import { supabase } from '../../services/supabaseClient';
 import { format } from 'date-fns';
@@ -10,46 +10,48 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AppStackParamList } from '../../navigation/AppNavigator';
 
-interface Event {
+interface Announcement {
     id: string;
     title: string;
-    description: string;
-    location: string;
-    event_date: string;
+    content: string;
+    created_at: string;
+    is_global: boolean;
     ministry_id: string | null;
     ministry?: {
         name: string;
     };
+    author: {
+        name: string;
+    };
 }
 
-export const EventsScreen: React.FC = () => {
+export const AnnouncementsScreen: React.FC = () => {
     const { profile } = useAuth();
     const navigation = useNavigation<NativeStackNavigationProp<AppStackParamList>>();
-    const [events, setEvents] = useState<Event[]>([]);
+    const [announcements, setAnnouncements] = useState<Announcement[]>([]);
     const [loading, setLoading] = useState(true);
 
-    // Check permissions: PASTOR can create global events, LEADER can create ministry events
     const canCreate = profile?.global_role === 'PASTOR' || profile?.global_role === 'LEADER';
 
     useEffect(() => {
-        fetchEvents();
+        fetchAnnouncements();
     }, []);
 
-    const fetchEvents = async () => {
+    const fetchAnnouncements = async () => {
         try {
             const { data, error } = await supabase
-                .from('events')
+                .from('announcements')
                 .select(`
           *,
-          ministry:ministries(name)
+          ministry:ministries(name),
+          author:profiles(name)
         `)
-                .order('event_date', { ascending: true })
-                .gte('event_date', new Date().toISOString()); // Only future events
+                .order('created_at', { ascending: false });
 
             if (error) {
-                console.error('Error fetching events:', error);
+                console.error('Error fetching announcements:', error);
             } else {
-                setEvents(data as any);
+                setAnnouncements(data as any);
             }
         } catch (error) {
             console.error('Unexpected error:', error);
@@ -58,25 +60,30 @@ export const EventsScreen: React.FC = () => {
         }
     };
 
-    const renderEventItem = ({ item }: { item: Event }) => (
+    const renderItem = ({ item }: { item: Announcement }) => (
         <View style={styles.card}>
-            <View style={styles.dateBadge}>
-                <Text style={styles.dateDay}>{format(new Date(item.event_date), 'dd', { locale: ptBR })}</Text>
-                <Text style={styles.dateMonth}>{format(new Date(item.event_date), 'MMM', { locale: ptBR }).toUpperCase()}</Text>
+            <View style={styles.cardHeader}>
+                <Text style={styles.cardTitle}>{item.title}</Text>
+                {item.is_global ? (
+                    <View style={styles.globalBadge}>
+                        <Text style={styles.globalBadgeText}>GERAL</Text>
+                    </View>
+                ) : (
+                    item.ministry && (
+                        <View style={styles.ministryBadge}>
+                            <Text style={styles.ministryBadgeText}>{item.ministry.name.toUpperCase()}</Text>
+                        </View>
+                    )
+                )}
             </View>
 
-            <View style={styles.cardContent}>
-                <Text style={styles.cardTitle}>{item.title}</Text>
-                <Text style={styles.cardInfo}>
-                    🕒 {format(new Date(item.event_date), 'HH:mm', { locale: ptBR })}
+            <Text style={styles.cardContent}>{item.content}</Text>
+
+            <View style={styles.cardFooter}>
+                <Text style={styles.cardAuthor}>Por: {item.author?.name || 'Admin'}</Text>
+                <Text style={styles.cardDate}>
+                    {format(new Date(item.created_at), "dd 'de' MMM 'às' HH:mm", { locale: ptBR })}
                 </Text>
-                <Text style={styles.cardInfo}>📍 {item.location}</Text>
-                {item.ministry && (
-                    <Text style={styles.ministryBadge}>{item.ministry.name}</Text>
-                )}
-                {item.description && (
-                    <Text style={styles.cardDescription}>{item.description}</Text>
-                )}
             </View>
         </View>
     );
@@ -84,11 +91,11 @@ export const EventsScreen: React.FC = () => {
     return (
         <ScreenContainer>
             <View style={styles.header}>
-                <Text style={styles.title}>Próximos Eventos</Text>
+                <Text style={styles.title}>Mural de Avisos</Text>
                 {canCreate && (
                     <TouchableOpacity
                         style={styles.createButton}
-                        onPress={() => navigation.navigate('CreateEvent' as any)} // We'll create this screen next
+                        onPress={() => navigation.navigate('CreateAnnouncement' as any)}
                     >
                         <Text style={styles.createButtonText}>+ Novo</Text>
                     </TouchableOpacity>
@@ -99,13 +106,13 @@ export const EventsScreen: React.FC = () => {
                 <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: spacing.xl }} />
             ) : (
                 <FlatList
-                    data={events}
-                    renderItem={renderEventItem}
+                    data={announcements}
+                    renderItem={renderItem}
                     keyExtractor={(item) => item.id}
                     contentContainerStyle={styles.listContent}
                     ListEmptyComponent={
                         <View style={styles.emptyContainer}>
-                            <Text style={styles.emptyText}>Nenhum evento agendado.</Text>
+                            <Text style={styles.emptyText}>Nenhum aviso publicado.</Text>
                         </View>
                     }
                 />
@@ -148,55 +155,63 @@ const styles = StyleSheet.create({
         marginBottom: spacing.md,
         borderWidth: 1,
         borderColor: colors.border,
+    },
+    cardHeader: {
         flexDirection: 'row',
-    },
-    dateBadge: {
-        backgroundColor: colors.background,
-        borderRadius: borderRadius.md,
-        padding: spacing.sm,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: spacing.md,
-        minWidth: 60,
-        height: 70,
-        borderWidth: 1,
-        borderColor: colors.border,
-    },
-    dateDay: {
-        fontSize: typography.sizes['2xl'],
-        fontWeight: typography.weights.bold,
-        color: colors.primary,
-    },
-    dateMonth: {
-        fontSize: typography.sizes.xs,
-        fontWeight: typography.weights.bold,
-        color: colors.textSecondary,
-    },
-    cardContent: {
-        flex: 1,
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: spacing.sm,
     },
     cardTitle: {
         fontSize: typography.sizes.lg,
-        fontWeight: typography.weights.semibold,
+        fontWeight: typography.weights.bold,
         color: colors.text,
-        marginBottom: spacing.xs,
+        flex: 1,
+        marginRight: spacing.sm,
     },
-    cardInfo: {
-        fontSize: typography.sizes.sm,
-        color: colors.textSecondary,
-        marginBottom: 2,
+    globalBadge: {
+        backgroundColor: colors.secondary,
+        paddingHorizontal: spacing.xs,
+        paddingVertical: 2,
+        borderRadius: borderRadius.sm,
+    },
+    globalBadgeText: {
+        color: colors.white,
+        fontSize: 10,
+        fontWeight: typography.weights.bold,
     },
     ministryBadge: {
-        fontSize: typography.sizes.xs,
-        color: colors.primary,
-        fontWeight: typography.weights.medium,
-        marginTop: spacing.xs,
-        marginBottom: spacing.xs,
+        backgroundColor: colors.primary,
+        paddingHorizontal: spacing.xs,
+        paddingVertical: 2,
+        borderRadius: borderRadius.sm,
     },
-    cardDescription: {
-        fontSize: typography.sizes.sm,
+    ministryBadgeText: {
+        color: colors.white,
+        fontSize: 10,
+        fontWeight: typography.weights.bold,
+    },
+    cardContent: {
+        fontSize: typography.sizes.md,
+        color: colors.textSecondary,
+        marginBottom: spacing.md,
+        lineHeight: 22,
+    },
+    cardFooter: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
+        paddingTop: spacing.sm,
+    },
+    cardAuthor: {
+        fontSize: typography.sizes.xs,
         color: colors.textMuted,
-        marginTop: spacing.xs,
+        fontStyle: 'italic',
+    },
+    cardDate: {
+        fontSize: typography.sizes.xs,
+        color: colors.textMuted,
     },
     emptyContainer: {
         padding: spacing.xl,
