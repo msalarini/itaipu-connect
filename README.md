@@ -94,6 +94,40 @@ O acesso ao aplicativo é **exclusivo por convite**. Não há registro público.
 - [ ] Fase 7: Push notifications
 - [ ] Fase 8: Publicação
 
+## 🚀 Build e Publicação
+
+Este projeto utiliza **EAS Build** para gerar os executáveis.
+
+### Pré-requisitos
+1. Instale a CLI do EAS: `npm install -g eas-cli`
+2. Faça login na sua conta Expo: `eas login`
+3. Configure o projeto (se ainda não configurado): `eas build:configure`
+
+### Gerando Builds
+
+**Android (APK para teste):**
+```bash
+eas build -p android --profile preview
+```
+
+**iOS (Simulator):**
+```bash
+eas build -p ios --profile preview
+```
+
+**Produção (Stores):**
+```bash
+eas build -p all --profile production
+```
+
+## 🤝 Contribuição
+
+1. Faça um Fork do projeto
+2. Crie uma Branch para sua Feature (`git checkout -b feature/AmazingFeature`)
+3. Faça o Commit de suas mudanças (`git commit -m 'Add some AmazingFeature'`)
+4. Faça o Push para a Branch (`git push origin feature/AmazingFeature`)
+5. Abra um Pull Request
+
 ## 📄 Licença
 
 Projeto privado - Uso interno da igreja.
