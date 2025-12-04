@@ -1,4 +1,5 @@
 import React from 'react';
+import { TouchableOpacity, Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { HomeScreen } from '../screens/home/HomeScreen';
@@ -10,6 +11,7 @@ import { ThreadScreen } from '../screens/ministries/ThreadScreen';
 import { CreateEventScreen } from '../screens/events/CreateEventScreen';
 import { AnnouncementsScreen } from '../screens/announcements/AnnouncementsScreen';
 import { CreateAnnouncementScreen } from '../screens/announcements/CreateAnnouncementScreen';
+import { MinistryMembersScreen } from '../screens/ministries/MinistryMembersScreen';
 import { colors } from '../theme';
 
 // Tipos para as Tabs
@@ -24,6 +26,7 @@ export type MainTabParamList = {
 export type AppStackParamList = {
     MainTabs: undefined;
     MinistryChannel: { ministryId: string; ministryName: string };
+    MinistryMembers: { ministryId: string; ministryName: string };
     Thread: { rootMessageId: string; ministryId: string };
     CreateEvent: undefined;
     Announcements: undefined;
@@ -78,12 +81,33 @@ export const AppNavigator: React.FC = () => {
             <Stack.Screen
                 name="MinistryChannel"
                 component={MinistryChannelScreen}
-                options={({ route }) => ({
+                options={({ route, navigation }) => ({
                     headerShown: true,
                     title: route.params.ministryName,
                     headerStyle: { backgroundColor: colors.backgroundCard },
-                    headerTintColor: colors.text
+                    headerTintColor: colors.text,
+                    headerRight: () => (
+                        <TouchableOpacity
+                            onPress={() => navigation.navigate('MinistryMembers', {
+                                ministryId: route.params.ministryId,
+                                ministryName: route.params.ministryName
+                            })}
+                            style={{ padding: 8 }}
+                        >
+                            <Text style={{ fontSize: 20 }}>ℹ️</Text>
+                        </TouchableOpacity>
+                    ),
                 })}
+            />
+            <Stack.Screen
+                name="MinistryMembers"
+                component={MinistryMembersScreen}
+                options={{
+                    headerShown: true,
+                    title: 'Membros',
+                    headerStyle: { backgroundColor: colors.backgroundCard },
+                    headerTintColor: colors.text
+                }}
             />
             <Stack.Screen
                 name="Thread"
