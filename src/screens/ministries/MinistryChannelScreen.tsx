@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator, Alert } from 'react-native';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AppStackParamList } from '../../navigation/AppNavigator';
@@ -8,9 +8,18 @@ import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../services/supabaseClient';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { AttachmentPicker, AttachmentPreview, MessageAttachment } from '../../components';
+import { uploadAttachment, validateFile, AttachmentFile } from '../../services/storageService';
 
 type MinistryChannelRouteProp = RouteProp<AppStackParamList, 'MinistryChannel'>;
 type MinistryChannelNavigationProp = NativeStackNavigationProp<AppStackParamList, 'MinistryChannel'>;
+
+interface MessageAttachmentData {
+    id: string;
+    file_url: string;
+    file_type: string;
+    file_name: string;
+}
 
 interface Message {
     id: string;
@@ -20,6 +29,7 @@ interface Message {
     author: {
         name: string;
     };
+    attachments?: MessageAttachmentData[];
 }
 
 export const MinistryChannelScreen: React.FC = () => {
@@ -32,6 +42,8 @@ export const MinistryChannelScreen: React.FC = () => {
     const [newMessage, setNewMessage] = useState('');
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
+    const [selectedFile, setSelectedFile] = useState<AttachmentFile | null>(null);
+    const [showAttachmentPicker, setShowAttachmentPicker] = useState(false);
     const flatListRef = useRef<FlatList>(null);
 
     useEffect(() => {
@@ -49,7 +61,6 @@ export const MinistryChannelScreen: React.FC = () => {
                     filter: `ministry_id=eq.${ministryId}`,
                 },
                 (payload) => {
-                    // Fetch the full message with author to append
                     fetchSingleMessage(payload.new.id);
                 }
             )
@@ -69,16 +80,17 @@ export const MinistryChannelScreen: React.FC = () => {
           content,
           created_at,
           author_id,
-          author:profiles(name)
+          author:profiles(name),
+          attachments:message_attachments(id, file_url, file_type, file_name)
         `)
                 .eq('ministry_id', ministryId)
-                .is('parent_message_id', null) // Only root messages
+                .is('parent_message_id', null)
                 .order('created_at', { ascending: true });
 
             if (error) {
                 console.error('Error fetching messages:', error);
             } else {
-                setMessages(data as any); // Type casting for simplicity with join
+                setMessages(data as any);
             }
         } catch (error) {
             console.error('Unexpected error:', error);
@@ -95,7 +107,8 @@ export const MinistryChannelScreen: React.FC = () => {
         content,
         created_at,
         author_id,
-        author:profiles(name)
+        author:profiles(name),
+        attachments:message_attachments(id, file_url, file_type, file_name)
       `)
             .eq('id', messageId)
             .single();
@@ -106,24 +119,60 @@ export const MinistryChannelScreen: React.FC = () => {
         }
     };
 
+    const handleSelectFile = async (file: AttachmentFile) => {
+        try {
+            await validateFile(file);
+            setSelectedFile(file);
+        } catch (error: any) {
+            Alert.alert('Erro', error.message);
+        }
+    };
+
     const handleSendMessage = async () => {
-        if (!newMessage.trim() || !user) return;
+        if ((!newMessage.trim() && !selectedFile) || !user) return;
 
         setSending(true);
         try {
-            const { error } = await supabase.from('messages').insert({
-                ministry_id: ministryId,
-                author_id: user.id,
-                content: newMessage.trim(),
-            });
+            // 1. Criar mensagem primeiro
+            const { data: messageData, error: messageError } = await supabase
+                .from('messages')
+                .insert({
+                    ministry_id: ministryId,
+                    author_id: user.id,
+                    content: newMessage.trim() || '(anexo)',
+                })
+                .select()
+                .single();
 
-            if (error) {
-                console.error('Error sending message:', error);
-            } else {
-                setNewMessage('');
+            if (messageError || !messageData) {
+                throw new Error('Erro ao criar mensagem');
             }
-        } catch (error) {
-            console.error('Unexpected error sending message:', error);
+
+            // 2. Se há anexo, fazer upload
+            if (selectedFile) {
+                const uploadResult = await uploadAttachment(selectedFile, messageData.id, ministryId);
+
+                // 3. Salvar referência na tabela message_attachments
+                const { error: attachmentError } = await supabase
+                    .from('message_attachments')
+                    .insert({
+                        message_id: messageData.id,
+                        file_url: uploadResult.url,
+                        file_name: uploadResult.filename,
+                        file_type: uploadResult.type,
+                    });
+
+                if (attachmentError) {
+                    console.error('Error saving attachment reference:', attachmentError);
+                }
+            }
+
+            // Limpar estados
+            setNewMessage('');
+            setSelectedFile(null);
+        } catch (error: any) {
+            console.error('Error sending message:', error);
+            Alert.alert('Erro', error.message || 'Não foi possível enviar a mensagem');
         } finally {
             setSending(false);
         }
@@ -131,6 +180,7 @@ export const MinistryChannelScreen: React.FC = () => {
 
     const renderMessageItem = ({ item }: { item: Message }) => {
         const isMyMessage = item.author_id === user?.id;
+        const attachment = item.attachments && item.attachments.length > 0 ? item.attachments[0] : null;
 
         return (
             <View style={[
@@ -144,12 +194,23 @@ export const MinistryChannelScreen: React.FC = () => {
                     styles.messageBubble,
                     isMyMessage ? styles.myMessageBubble : styles.otherMessageBubble
                 ]}>
-                    <Text style={[
-                        styles.messageText,
-                        isMyMessage ? styles.myMessageText : styles.otherMessageText
-                    ]}>
-                        {item.content}
-                    </Text>
+                    {item.content && item.content !== '(anexo)' && (
+                        <Text style={[
+                            styles.messageText,
+                            isMyMessage ? styles.myMessageText : styles.otherMessageText
+                        ]}>
+                            {item.content}
+                        </Text>
+                    )}
+
+                    {attachment && (
+                        <MessageAttachment
+                            url={attachment.file_url}
+                            type={attachment.file_type as 'image' | 'document'}
+                            filename={attachment.file_name}
+                        />
+                    )}
+
                     <Text style={[
                         styles.messageTime,
                         isMyMessage ? styles.myMessageTime : styles.otherMessageTime
@@ -186,7 +247,23 @@ export const MinistryChannelScreen: React.FC = () => {
                 />
             )}
 
+            {selectedFile && (
+                <View style={styles.previewContainer}>
+                    <AttachmentPreview
+                        file={selectedFile}
+                        onRemove={() => setSelectedFile(null)}
+                    />
+                </View>
+            )}
+
             <View style={styles.inputContainer}>
+                <TouchableOpacity
+                    style={styles.attachButton}
+                    onPress={() => setShowAttachmentPicker(true)}
+                >
+                    <Text style={styles.attachIcon}>📎</Text>
+                </TouchableOpacity>
+
                 <TextInput
                     style={styles.input}
                     placeholder="Digite sua mensagem..."
@@ -195,14 +272,25 @@ export const MinistryChannelScreen: React.FC = () => {
                     onChangeText={setNewMessage}
                     multiline
                 />
+
                 <TouchableOpacity
-                    style={[styles.sendButton, !newMessage.trim() && styles.sendButtonDisabled]}
+                    style={[styles.sendButton, (!newMessage.trim() && !selectedFile) && styles.sendButtonDisabled]}
                     onPress={handleSendMessage}
-                    disabled={!newMessage.trim() || sending}
+                    disabled={(!newMessage.trim() && !selectedFile) || sending}
                 >
-                    <Text style={styles.sendButtonText}>Enviar</Text>
+                    {sending ? (
+                        <ActivityIndicator size="small" color={colors.white} />
+                    ) : (
+                        <Text style={styles.sendButtonText}>Enviar</Text>
+                    )}
                 </TouchableOpacity>
             </View>
+
+            <AttachmentPicker
+                visible={showAttachmentPicker}
+                onClose={() => setShowAttachmentPicker(false)}
+                onSelectFile={handleSelectFile}
+            />
         </KeyboardAvoidingView>
     );
 };
@@ -266,6 +354,7 @@ const styles = StyleSheet.create({
     messageTime: {
         fontSize: 10,
         alignSelf: 'flex-end',
+        marginTop: spacing.xs,
     },
     myMessageTime: {
         color: 'rgba(255, 255, 255, 0.7)',
@@ -282,6 +371,13 @@ const styles = StyleSheet.create({
         color: colors.primary,
         fontWeight: typography.weights.medium,
     },
+    previewContainer: {
+        paddingHorizontal: spacing.md,
+        paddingTop: spacing.sm,
+        backgroundColor: colors.backgroundCard,
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
+    },
     inputContainer: {
         flexDirection: 'row',
         padding: spacing.md,
@@ -289,6 +385,13 @@ const styles = StyleSheet.create({
         borderTopWidth: 1,
         borderTopColor: colors.border,
         alignItems: 'center',
+    },
+    attachButton: {
+        padding: spacing.sm,
+        marginRight: spacing.xs,
+    },
+    attachIcon: {
+        fontSize: 24,
     },
     input: {
         flex: 1,
@@ -305,6 +408,8 @@ const styles = StyleSheet.create({
         paddingHorizontal: spacing.md,
         paddingVertical: spacing.sm,
         borderRadius: borderRadius.full,
+        minWidth: 60,
+        alignItems: 'center',
     },
     sendButtonDisabled: {
         backgroundColor: colors.muted,

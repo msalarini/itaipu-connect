@@ -1,14 +1,23 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
-import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
+import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator, Alert } from 'react-native';
+import { useRoute, RouteProp } from '@react-navigation/native';
 import { AppStackParamList } from '../../navigation/AppNavigator';
 import { colors, spacing, typography, borderRadius } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../services/supabaseClient';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { AttachmentPicker, AttachmentPreview, MessageAttachment } from '../../components';
+import { uploadAttachment, validateFile, AttachmentFile } from '../../services/storageService';
 
 type ThreadRouteProp = RouteProp<AppStackParamList, 'Thread'>;
+
+interface MessageAttachmentData {
+    id: string;
+    file_url: string;
+    file_type: string;
+    file_name: string;
+}
 
 interface Message {
     id: string;
@@ -18,6 +27,7 @@ interface Message {
     author: {
         name: string;
     };
+    attachments?: MessageAttachmentData[];
 }
 
 export const ThreadScreen: React.FC = () => {
@@ -30,12 +40,13 @@ export const ThreadScreen: React.FC = () => {
     const [newMessage, setNewMessage] = useState('');
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
+    const [selectedFile, setSelectedFile] = useState<AttachmentFile | null>(null);
+    const [showAttachmentPicker, setShowAttachmentPicker] = useState(false);
     const flatListRef = useRef<FlatList>(null);
 
     useEffect(() => {
         fetchThread();
 
-        // Subscribe to new replies
         const channel = supabase
             .channel(`thread:${rootMessageId}`)
             .on(
@@ -59,7 +70,6 @@ export const ThreadScreen: React.FC = () => {
 
     const fetchThread = async () => {
         try {
-            // Fetch root message
             const { data: rootData, error: rootError } = await supabase
                 .from('messages')
                 .select(`
@@ -67,7 +77,8 @@ export const ThreadScreen: React.FC = () => {
           content,
           created_at,
           author_id,
-          author:profiles(name)
+          author:profiles(name),
+          attachments:message_attachments(id, file_url, file_type, file_name)
         `)
                 .eq('id', rootMessageId)
                 .single();
@@ -75,7 +86,6 @@ export const ThreadScreen: React.FC = () => {
             if (rootError) throw rootError;
             setRootMessage(rootData as any);
 
-            // Fetch replies
             const { data: repliesData, error: repliesError } = await supabase
                 .from('messages')
                 .select(`
@@ -83,7 +93,8 @@ export const ThreadScreen: React.FC = () => {
           content,
           created_at,
           author_id,
-          author:profiles(name)
+          author:profiles(name),
+          attachments:message_attachments(id, file_url, file_type, file_name)
         `)
                 .eq('parent_message_id', rootMessageId)
                 .order('created_at', { ascending: true });
@@ -106,7 +117,8 @@ export const ThreadScreen: React.FC = () => {
         content,
         created_at,
         author_id,
-        author:profiles(name)
+        author:profiles(name),
+        attachments:message_attachments(id, file_url, file_type, file_name)
       `)
             .eq('id', messageId)
             .single();
@@ -117,25 +129,57 @@ export const ThreadScreen: React.FC = () => {
         }
     };
 
+    const handleSelectFile = async (file: AttachmentFile) => {
+        try {
+            await validateFile(file);
+            setSelectedFile(file);
+        } catch (error: any) {
+            Alert.alert('Erro', error.message);
+        }
+    };
+
     const handleSendMessage = async () => {
-        if (!newMessage.trim() || !user) return;
+        if ((!newMessage.trim() && !selectedFile) || !user) return;
 
         setSending(true);
         try {
-            const { error } = await supabase.from('messages').insert({
-                ministry_id: ministryId,
-                author_id: user.id,
-                content: newMessage.trim(),
-                parent_message_id: rootMessageId,
-            });
+            const { data: messageData, error: messageError } = await supabase
+                .from('messages')
+                .insert({
+                    ministry_id: ministryId,
+                    author_id: user.id,
+                    content: newMessage.trim() || '(anexo)',
+                    parent_message_id: rootMessageId,
+                })
+                .select()
+                .single();
 
-            if (error) {
-                console.error('Error sending reply:', error);
-            } else {
-                setNewMessage('');
+            if (messageError || !messageData) {
+                throw new Error('Erro ao criar mensagem');
             }
-        } catch (error) {
-            console.error('Unexpected error sending reply:', error);
+
+            if (selectedFile) {
+                const uploadResult = await uploadAttachment(selectedFile, messageData.id, ministryId);
+
+                const { error: attachmentError } = await supabase
+                    .from('message_attachments')
+                    .insert({
+                        message_id: messageData.id,
+                        file_url: uploadResult.url,
+                        file_name: uploadResult.filename,
+                        file_type: uploadResult.type,
+                    });
+
+                if (attachmentError) {
+                    console.error('Error saving attachment reference:', attachmentError);
+                }
+            }
+
+            setNewMessage('');
+            setSelectedFile(null);
+        } catch (error: any) {
+            console.error('Error sending reply:', error);
+            Alert.alert('Erro', error.message || 'Não foi possível enviar a resposta');
         } finally {
             setSending(false);
         }
@@ -143,6 +187,7 @@ export const ThreadScreen: React.FC = () => {
 
     const renderMessageItem = ({ item, isRoot = false }: { item: Message; isRoot?: boolean }) => {
         const isMyMessage = item.author_id === user?.id;
+        const attachment = item.attachments && item.attachments.length > 0 ? item.attachments[0] : null;
 
         return (
             <View style={[
@@ -158,12 +203,23 @@ export const ThreadScreen: React.FC = () => {
                     isMyMessage ? styles.myMessageBubble : styles.otherMessageBubble,
                     isRoot && styles.rootMessageBubble
                 ]}>
-                    <Text style={[
-                        styles.messageText,
-                        isMyMessage ? styles.myMessageText : styles.otherMessageText
-                    ]}>
-                        {item.content}
-                    </Text>
+                    {item.content && item.content !== '(anexo)' && (
+                        <Text style={[
+                            styles.messageText,
+                            isMyMessage ? styles.myMessageText : styles.otherMessageText
+                        ]}>
+                            {item.content}
+                        </Text>
+                    )}
+
+                    {attachment && (
+                        <MessageAttachment
+                            url={attachment.file_url}
+                            type={attachment.file_type as 'image' | 'document'}
+                            filename={attachment.file_name}
+                        />
+                    )}
+
                     <Text style={[
                         styles.messageTime,
                         isMyMessage ? styles.myMessageTime : styles.otherMessageTime
@@ -195,7 +251,23 @@ export const ThreadScreen: React.FC = () => {
                 />
             )}
 
+            {selectedFile && (
+                <View style={styles.previewContainer}>
+                    <AttachmentPreview
+                        file={selectedFile}
+                        onRemove={() => setSelectedFile(null)}
+                    />
+                </View>
+            )}
+
             <View style={styles.inputContainer}>
+                <TouchableOpacity
+                    style={styles.attachButton}
+                    onPress={() => setShowAttachmentPicker(true)}
+                >
+                    <Text style={styles.attachIcon}>📎</Text>
+                </TouchableOpacity>
+
                 <TextInput
                     style={styles.input}
                     placeholder="Responder na thread..."
@@ -204,14 +276,25 @@ export const ThreadScreen: React.FC = () => {
                     onChangeText={setNewMessage}
                     multiline
                 />
+
                 <TouchableOpacity
-                    style={[styles.sendButton, !newMessage.trim() && styles.sendButtonDisabled]}
+                    style={[styles.sendButton, (!newMessage.trim() && !selectedFile) && styles.sendButtonDisabled]}
                     onPress={handleSendMessage}
-                    disabled={!newMessage.trim() || sending}
+                    disabled={(!newMessage.trim() && !selectedFile) || sending}
                 >
-                    <Text style={styles.sendButtonText}>Enviar</Text>
+                    {sending ? (
+                        <ActivityIndicator size="small" color={colors.white} />
+                    ) : (
+                        <Text style={styles.sendButtonText}>Enviar</Text>
+                    )}
                 </TouchableOpacity>
             </View>
+
+            <AttachmentPicker
+                visible={showAttachmentPicker}
+                onClose={() => setShowAttachmentPicker(false)}
+                onSelectFile={handleSelectFile}
+            />
         </KeyboardAvoidingView>
     );
 };
@@ -288,12 +371,20 @@ const styles = StyleSheet.create({
     messageTime: {
         fontSize: 10,
         alignSelf: 'flex-end',
+        marginTop: spacing.xs,
     },
     myMessageTime: {
         color: 'rgba(255, 255, 255, 0.7)',
     },
     otherMessageTime: {
         color: colors.textMuted,
+    },
+    previewContainer: {
+        paddingHorizontal: spacing.md,
+        paddingTop: spacing.sm,
+        backgroundColor: colors.backgroundCard,
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
     },
     inputContainer: {
         flexDirection: 'row',
@@ -302,6 +393,13 @@ const styles = StyleSheet.create({
         borderTopWidth: 1,
         borderTopColor: colors.border,
         alignItems: 'center',
+    },
+    attachButton: {
+        padding: spacing.sm,
+        marginRight: spacing.xs,
+    },
+    attachIcon: {
+        fontSize: 24,
     },
     input: {
         flex: 1,
@@ -318,6 +416,8 @@ const styles = StyleSheet.create({
         paddingHorizontal: spacing.md,
         paddingVertical: spacing.sm,
         borderRadius: borderRadius.full,
+        minWidth: 60,
+        alignItems: 'center',
     },
     sendButtonDisabled: {
         backgroundColor: colors.muted,
