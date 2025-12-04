@@ -65,7 +65,7 @@ USING (
     SELECT 1 FROM messages m
     INNER JOIN message_attachments ma ON ma.message_id = m.id
     WHERE m.author_id = auth.uid()
-    AND storage.objects.name = ma.storage_path
+    AND storage.objects.name LIKE '%' || m.id || '%'
   )
 );
 
