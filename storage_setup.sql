@@ -12,6 +12,11 @@
 -- PASSO 2: Executar este SQL abaixo
 -- ============================================
 
+-- Remover políticas antigas se existirem
+DROP POLICY IF EXISTS "Users can view attachments from their ministries" ON storage.objects;
+DROP POLICY IF EXISTS "Users can upload attachments to their ministries" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete their own attachments" ON storage.objects;
+
 -- Política: Usuários podem visualizar anexos de mensagens em ministérios que participam
 CREATE POLICY "Users can view attachments from their ministries"
 ON storage.objects FOR SELECT
