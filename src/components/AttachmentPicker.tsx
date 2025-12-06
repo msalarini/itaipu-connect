@@ -98,11 +98,12 @@ export const AttachmentPicker: React.FC<AttachmentPickerProps> = ({
                 copyToCacheDirectory: true,
             });
 
-            if (result.type === 'success') {
+            if (!result.canceled && result.assets && result.assets.length > 0) {
+                const asset = result.assets[0];
                 onSelectFile({
-                    uri: result.uri,
-                    type: result.mimeType || 'application/pdf',
-                    name: result.name,
+                    uri: asset.uri,
+                    type: asset.mimeType || 'application/pdf',
+                    name: asset.name,
                 });
                 onClose();
             }

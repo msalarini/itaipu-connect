@@ -1,6 +1,11 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
+import {
+    registerForPushNotificationsAsync,
+    saveTokenToDatabase,
+    removeTokenFromDatabase,
+} from '../services/notificationService';
 
 type GlobalRole = 'MEMBER' | 'LEADER' | 'PASTOR';
 
@@ -16,6 +21,7 @@ interface AuthContextData {
     user: User | null;
     profile: UserProfile | null;
     loading: boolean;
+    expoPushToken: string | null;
     signIn: () => Promise<void>;
     signOut: () => Promise<void>;
     refreshProfile: () => Promise<void>;
@@ -29,6 +35,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const [session, setSession] = useState<Session | null>(null);
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
+    const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
+    const pushTokenRef = useRef<string | null>(null);
 
     useEffect(() => {
         // Carregar sessão inicial
@@ -36,6 +44,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             setSession(session);
             if (session?.user) {
                 fetchProfile(session.user.id);
+                registerPushToken(session.user.id);
             } else {
                 setLoading(false);
             }
@@ -48,6 +57,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             setSession(session);
             if (session?.user) {
                 fetchProfile(session.user.id);
+                registerPushToken(session.user.id);
             } else {
                 setProfile(null);
                 setLoading(false);
@@ -77,12 +87,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         }
     };
 
+    const registerPushToken = async (userId: string) => {
+        try {
+            const token = await registerForPushNotificationsAsync();
+            if (token) {
+                setExpoPushToken(token);
+                pushTokenRef.current = token;
+                await saveTokenToDatabase(userId, token);
+                console.log('Push token registered for user:', userId);
+            }
+        } catch (error) {
+            console.error('Error registering push token:', error);
+        }
+    };
+
+    const unregisterPushToken = async (userId: string) => {
+        try {
+            const token = pushTokenRef.current;
+            if (token) {
+                await removeTokenFromDatabase(userId, token);
+                setExpoPushToken(null);
+                pushTokenRef.current = null;
+                console.log('Push token unregistered for user:', userId);
+            }
+        } catch (error) {
+            console.error('Error unregistering push token:', error);
+        }
+    };
+
     const signIn = async () => {
         // A lógica de sign in específica (email/password) é feita nos componentes
         // Aqui apenas garantimos que o estado seja atualizado via onAuthStateChange
     };
 
     const signOut = async () => {
+        // Unregister push token before signing out
+        if (session?.user) {
+            await unregisterPushToken(session.user.id);
+        }
         await supabase.auth.signOut();
         setProfile(null);
         setSession(null);
@@ -101,6 +143,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
                 user: session?.user ?? null,
                 profile,
                 loading,
+                expoPushToken,
                 signIn,
                 signOut,
                 refreshProfile,
@@ -112,3 +155,4 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 };
 
 export const useAuth = () => useContext(AuthContext);
+

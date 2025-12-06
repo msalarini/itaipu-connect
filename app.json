@@ -27,6 +27,29 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "notification": {
+      "icon": "./assets/notification-icon.png",
+      "color": "#6366F1",
+      "androidMode": "default",
+      "androidCollapsedTitle": "Itaipu Connect"
+    },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#6366F1",
+          "sounds": []
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "O app precisa acessar suas fotos para enviar imagens nas mensagens.",
+          "cameraPermission": "O app precisa acessar sua câmera para tirar fotos."
+        }
+      ]
+    ]
   }
 }
