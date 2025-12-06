@@ -12,6 +12,8 @@ import { CreateEventScreen } from '../screens/events/CreateEventScreen';
 import { AnnouncementsScreen } from '../screens/announcements/AnnouncementsScreen';
 import { CreateAnnouncementScreen } from '../screens/announcements/CreateAnnouncementScreen';
 import { MinistryMembersScreen } from '../screens/ministries/MinistryMembersScreen';
+import { InvitesScreen } from '../screens/invites/InvitesScreen';
+import { CreateInviteScreen } from '../screens/invites/CreateInviteScreen';
 import { colors } from '../theme';
 
 // Tipos para as Tabs
@@ -31,6 +33,8 @@ export type AppStackParamList = {
     CreateEvent: undefined;
     Announcements: undefined;
     CreateAnnouncement: undefined;
+    Invites: undefined;
+    CreateInvite: undefined;
 };
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -145,6 +149,26 @@ export const AppNavigator: React.FC = () => {
                 options={{
                     headerShown: true,
                     title: 'Novo Aviso',
+                    headerStyle: { backgroundColor: colors.backgroundCard },
+                    headerTintColor: colors.text
+                }}
+            />
+            <Stack.Screen
+                name="Invites"
+                component={InvitesScreen}
+                options={{
+                    headerShown: true,
+                    title: 'Gerenciar Convites',
+                    headerStyle: { backgroundColor: colors.backgroundCard },
+                    headerTintColor: colors.text
+                }}
+            />
+            <Stack.Screen
+                name="CreateInvite"
+                component={CreateInviteScreen}
+                options={{
+                    headerShown: true,
+                    title: 'Novo Convite',
                     headerStyle: { backgroundColor: colors.backgroundCard },
                     headerTintColor: colors.text
                 }}

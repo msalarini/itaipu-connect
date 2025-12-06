@@ -1,12 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Alert, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ScreenContainer, AppInput, AppButton } from '../../components';
 import { colors, spacing, typography, borderRadius } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../services/supabaseClient';
+import { AppStackParamList } from '../../navigation/AppNavigator';
+
+type ProfileNavigationProp = NativeStackNavigationProp<AppStackParamList, 'MainTabs'>;
 
 export const ProfileScreen: React.FC = () => {
+    const navigation = useNavigation<ProfileNavigationProp>();
     const { user, profile, refreshProfile, signOut } = useAuth();
+
+    const isPastor = profile?.global_role === 'PASTOR';
 
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
@@ -130,6 +138,20 @@ export const ProfileScreen: React.FC = () => {
                     <Text style={styles.settingLabel}>Notificações Push</Text>
                     <Text style={styles.settingValue}>Ativado</Text>
                 </TouchableOpacity>
+
+                {isPastor && (
+                    <>
+                        <View style={styles.divider} />
+                        <Text style={styles.sectionTitle}>Administração</Text>
+                        <TouchableOpacity
+                            style={styles.settingItem}
+                            onPress={() => navigation.navigate('Invites')}
+                        >
+                            <Text style={styles.settingLabel}>Gerenciar Convites</Text>
+                            <Text style={styles.settingValue}>→</Text>
+                        </TouchableOpacity>
+                    </>
+                )}
 
                 <View style={styles.divider} />
 
