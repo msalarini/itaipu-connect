@@ -195,6 +195,39 @@ create policy "Events viewable by everyone"
   on events for select
   using ( true );
 
+-- Message Attachments
+create policy "Attachments viewable by ministry members"
+  on message_attachments for select
+  using (
+    exists (
+      select 1 from messages m
+      join ministry_members mm on mm.ministry_id = m.ministry_id
+      where m.id = message_attachments.message_id
+      and mm.user_id = auth.uid()
+    )
+  );
+
+create policy "Members can insert attachments"
+  on message_attachments for insert
+  with check (
+    exists (
+      select 1 from messages m
+      join ministry_members mm on mm.ministry_id = m.ministry_id
+      where m.id = message_attachments.message_id
+      and mm.user_id = auth.uid()
+    )
+  );
+
+create policy "Authors can delete their attachments"
+  on message_attachments for delete
+  using (
+    exists (
+      select 1 from messages m
+      where m.id = message_attachments.message_id
+      and m.author_id = auth.uid()
+    )
+  );
+
 -- Storage Buckets (Create if not exists via dashboard, but policies here if possible)
 -- Note: Storage policies are usually handled in Storage section, but we can define standard RLS if table wrappers are used.
 -- For now, we assume Storage will be configured in Dashboard.

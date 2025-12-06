@@ -47,10 +47,16 @@ export const InviteRegisterScreen: React.FC = () => {
                 return;
             }
 
-            // 2. Criar usuário no Auth
+            // 2. Criar usuário no Auth (com metadados para o trigger)
             const { data: authData, error: authError } = await supabase.auth.signUp({
                 email,
                 password,
+                options: {
+                    data: {
+                        name: name,
+                        global_role: inviteData.global_role,
+                    },
+                },
             });
 
             if (authError || !authData.user) {
@@ -61,20 +67,31 @@ export const InviteRegisterScreen: React.FC = () => {
 
             const userId = authData.user.id;
 
-            // 3. Criar perfil com role do convite
-            const { error: profileError } = await supabase.from('profiles').insert({
-                id: userId,
-                email,
-                name,
-                global_role: inviteData.global_role,
-            });
+            // 3. Aguardar um pouco para o trigger criar o perfil
+            await new Promise(resolve => setTimeout(resolve, 1000));
 
-            if (profileError) {
-                console.error('Profile Error:', profileError);
-                Alert.alert('Erro', 'Conta criada, mas falha ao criar perfil.');
-                setLoading(false);
-                return;
+            // 4. Verificar se o perfil foi criado (pelo trigger)
+            const { data: profileData, error: profileCheckError } = await supabase
+                .from('profiles')
+                .select('id')
+                .eq('id', userId)
+                .single();
+
+            // Se o trigger não criou, criar manualmente (fallback)
+            if (profileCheckError || !profileData) {
+                const { error: profileError } = await supabase.from('profiles').insert({
+                    id: userId,
+                    email,
+                    name,
+                    global_role: inviteData.global_role,
+                });
+
+                if (profileError) {
+                    console.error('Profile Error:', profileError);
+                    // Continuar mesmo com erro, pois o usuário Auth foi criado
+                }
             }
+
 
             // 4. Adicionar aos ministérios padrão (se houver)
             if (inviteData.ministries_default && inviteData.ministries_default.length > 0) {

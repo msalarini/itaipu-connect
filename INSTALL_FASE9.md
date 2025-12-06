@@ -58,10 +58,11 @@ Após instalar e configurar, teste a funcionalidade:
 
 ---
 
-## Arquivos Criados
+## Arquivos Criados/Modificados
 
 ✅ **Backend:**
-- `storage_setup.sql` - Políticas RLS para Storage
+- `storage_setup.sql` - Políticas RLS para Storage (bucket)
+- `fix_attachments_rls.sql` - Políticas RLS para tabela message_attachments
 
 ✅ **Serviços:**
 - `src/services/storageService.ts` - Upload, validação e gerenciamento
@@ -71,6 +72,13 @@ Após instalar e configurar, teste a funcionalidade:
 - `src/components/AttachmentPreview.tsx` - Preview antes de enviar
 - `src/components/MessageAttachment.tsx` - Renderização nas mensagens
 
-⏳ **Pendente:**
-- Integração nas telas de chat (MinistryChannelScreen e ThreadScreen)
-- Instalação das dependências
+✅ **Integração nas telas:**
+- `src/screens/ministries/MinistryChannelScreen.tsx` - Chat principal com anexos
+- `src/screens/ministries/ThreadScreen.tsx` - Respostas em thread com anexos
+
+## ⚠️ Ação Necessária no Supabase
+
+Execute os seguintes SQLs no **SQL Editor** do Supabase:
+1. `storage_setup.sql` - Políticas do bucket de storage
+2. `fix_attachments_rls.sql` - Políticas da tabela message_attachments
+
