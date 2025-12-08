@@ -4,10 +4,15 @@ export const colors = {
     primaryDark: '#1E40AF',
     primaryLight: '#3B82F6',
 
+    // Secondary
+    secondary: '#6366F1', // indigo-500
+    secondaryDark: '#4F46E5',
+
     // Background
     background: '#020617', // slate-950
     backgroundCard: '#0B1120',
     backgroundHover: '#1E293B', // slate-800
+    muted: '#1E293B', // slate-800
 
     // Text
     text: '#E5E7EB', // gray-200

@@ -13,6 +13,8 @@ interface UserProfile {
     id: string;
     email: string;
     name: string;
+    phone?: string;
+    bio?: string;
     global_role: GlobalRole;
 }
 

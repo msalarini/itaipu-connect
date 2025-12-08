@@ -5,14 +5,17 @@ import {
     StyleSheet,
     ActivityIndicator,
     TouchableOpacityProps,
+    TextStyle,
+    StyleProp,
 } from 'react-native';
 import { colors, spacing, typography, borderRadius } from '../theme';
 
-interface AppButtonProps extends TouchableOpacityProps {
+export interface AppButtonProps extends TouchableOpacityProps {
     title: string;
     variant?: 'primary' | 'secondary' | 'outline';
     loading?: boolean;
     fullWidth?: boolean;
+    textStyle?: StyleProp<TextStyle>;
 }
 
 export const AppButton: React.FC<AppButtonProps> = ({
@@ -22,6 +25,7 @@ export const AppButton: React.FC<AppButtonProps> = ({
     fullWidth = false,
     disabled,
     style,
+    textStyle,
     ...props
 }) => {
     const getButtonStyle = () => {
@@ -62,7 +66,7 @@ export const AppButton: React.FC<AppButtonProps> = ({
                     color={variant === 'outline' ? colors.primary : colors.white}
                 />
             ) : (
-                <Text style={[styles.text, getTextStyle()]}>{title}</Text>
+                <Text style={[styles.text, getTextStyle(), textStyle]}>{title}</Text>
             )}
         </TouchableOpacity>
     );
