@@ -1,8 +1,14 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, RefreshControl } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ScreenContainer } from '../../components';
 import { colors, spacing, typography, borderRadius } from '../../theme';
 import { supabase } from '../../services/supabaseClient';
+import { useAuth } from '../../context/AuthContext';
+import { AppStackParamList } from '../../navigation/AppNavigator';
+
+type NavigationProp = NativeStackNavigationProp<AppStackParamList>;
 
 interface Ministry {
     id: string;
@@ -11,14 +17,15 @@ interface Ministry {
 }
 
 export const MinistriesListScreen: React.FC = () => {
+    const navigation = useNavigation<NavigationProp>();
+    const { profile } = useAuth();
     const [ministries, setMinistries] = useState<Ministry[]>([]);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
 
-    useEffect(() => {
-        fetchMinistries();
-    }, []);
+    const isPastor = profile?.global_role === 'PASTOR';
 
-    const fetchMinistries = async () => {
+    const fetchMinistries = useCallback(async () => {
         try {
             const { data, error } = await supabase
                 .from('ministries')
@@ -34,23 +41,52 @@ export const MinistriesListScreen: React.FC = () => {
             console.error('Unexpected error:', error);
         } finally {
             setLoading(false);
+            setRefreshing(false);
         }
+    }, []);
+
+    useEffect(() => {
+        fetchMinistries();
+    }, [fetchMinistries]);
+
+    useEffect(() => {
+        const unsubscribe = navigation.addListener('focus', () => {
+            fetchMinistries();
+        });
+        return unsubscribe;
+    }, [navigation, fetchMinistries]);
+
+    const handleRefresh = () => {
+        setRefreshing(true);
+        fetchMinistries();
+    };
+
+    const handleMinistryPress = (ministry: Ministry) => {
+        navigation.navigate('MinistryChannel', {
+            ministryId: ministry.id,
+            ministryName: ministry.name,
+        });
     };
 
     const renderMinistryItem = ({ item }: { item: Ministry }) => (
-        <View style={styles.card}>
+        <TouchableOpacity
+            style={styles.card}
+            onPress={() => handleMinistryPress(item)}
+            activeOpacity={0.7}
+        >
             <View style={styles.cardHeader}>
                 <View style={styles.avatarPlaceholder}>
                     <Text style={styles.avatarText}>{item.name.substring(0, 2).toUpperCase()}</Text>
                 </View>
                 <View style={styles.cardContent}>
                     <Text style={styles.cardTitle}>{item.name}</Text>
-                    <Text style={styles.cardDescription}>
+                    <Text style={styles.cardDescription} numberOfLines={2}>
                         {item.description || 'Sem descrição'}
                     </Text>
                 </View>
+                <Text style={styles.chevron}>›</Text>
             </View>
-        </View>
+        </TouchableOpacity>
     );
 
     return (
@@ -68,12 +104,36 @@ export const MinistriesListScreen: React.FC = () => {
                     renderItem={renderMinistryItem}
                     keyExtractor={(item) => item.id}
                     contentContainerStyle={styles.listContent}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={handleRefresh}
+                            tintColor={colors.primary}
+                        />
+                    }
                     ListEmptyComponent={
                         <View style={styles.emptyContainer}>
-                            <Text style={styles.emptyText}>Nenhum ministério encontrado.</Text>
+                            <Text style={styles.emptyIcon}>⛪</Text>
+                            <Text style={styles.emptyTitle}>Nenhum ministério</Text>
+                            <Text style={styles.emptyText}>
+                                {isPastor
+                                    ? 'Crie o primeiro ministério tocando no botão +'
+                                    : 'Ainda não há ministérios cadastrados.'}
+                            </Text>
                         </View>
                     }
                 />
+            )}
+
+            {isPastor && (
+                <TouchableOpacity
+                    style={styles.fab}
+                    onPress={() => navigation.navigate('CreateMinistry')}
+                    accessibilityLabel="Criar novo ministério"
+                    accessibilityRole="button"
+                >
+                    <Text style={styles.fabIcon}>+</Text>
+                </TouchableOpacity>
             )}
         </ScreenContainer>
     );
@@ -96,6 +156,7 @@ const styles = StyleSheet.create({
     },
     listContent: {
         padding: spacing.lg,
+        paddingBottom: 100,
     },
     card: {
         backgroundColor: colors.backgroundCard,
@@ -113,7 +174,7 @@ const styles = StyleSheet.create({
         width: 48,
         height: 48,
         borderRadius: borderRadius.full,
-        backgroundColor: colors.secondary,
+        backgroundColor: colors.primary,
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: spacing.md,
@@ -136,13 +197,52 @@ const styles = StyleSheet.create({
         color: colors.textSecondary,
         marginTop: spacing.xs,
     },
+    chevron: {
+        fontSize: 24,
+        color: colors.textMuted,
+        marginLeft: spacing.sm,
+    },
     emptyContainer: {
         padding: spacing.xl,
         alignItems: 'center',
+        marginTop: spacing.xl,
+    },
+    emptyIcon: {
+        fontSize: 64,
+        marginBottom: spacing.lg,
+    },
+    emptyTitle: {
+        fontSize: typography.sizes.xl,
+        fontWeight: typography.weights.bold,
+        color: colors.text,
+        marginBottom: spacing.sm,
     },
     emptyText: {
         color: colors.textMuted,
         textAlign: 'center',
         fontSize: typography.sizes.md,
     },
+    fab: {
+        position: 'absolute',
+        bottom: spacing.xl,
+        right: spacing.xl,
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        backgroundColor: colors.primary,
+        alignItems: 'center',
+        justifyContent: 'center',
+        elevation: 5,
+        shadowColor: colors.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+    },
+    fabIcon: {
+        fontSize: 32,
+        color: colors.white,
+        fontWeight: typography.weights.bold,
+        marginTop: -2,
+    },
 });
+

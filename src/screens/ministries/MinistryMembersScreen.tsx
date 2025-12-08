@@ -24,7 +24,9 @@ export const MinistryMembersScreen: React.FC = () => {
     const route = useRoute<MinistryMembersRouteProp>();
     const navigation = useNavigation<NativeStackNavigationProp<AppStackParamList>>();
     const { ministryId, ministryName } = route.params;
-    const { user } = useAuth();
+    const { user, profile } = useAuth();
+
+    const isPastor = profile?.global_role === 'PASTOR';
 
     const [members, setMembers] = useState<Member[]>([]);
     const [loading, setLoading] = useState(true);
@@ -143,6 +145,16 @@ export const MinistryMembersScreen: React.FC = () => {
                         variant="primary"
                         onPress={handleGenerateInvite}
                         style={styles.inviteButton}
+                    />
+                </View>
+            )}
+
+            {isPastor && (
+                <View style={styles.actions}>
+                    <AppButton
+                        title="Editar Ministério"
+                        variant="outline"
+                        onPress={() => navigation.navigate('EditMinistry', { ministryId })}
                     />
                 </View>
             )}

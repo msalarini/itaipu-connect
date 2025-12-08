@@ -14,6 +14,8 @@ import { CreateAnnouncementScreen } from '../screens/announcements/CreateAnnounc
 import { MinistryMembersScreen } from '../screens/ministries/MinistryMembersScreen';
 import { InvitesScreen } from '../screens/invites/InvitesScreen';
 import { CreateInviteScreen } from '../screens/invites/CreateInviteScreen';
+import { CreateMinistryScreen } from '../screens/ministries/CreateMinistryScreen';
+import { EditMinistryScreen } from '../screens/ministries/EditMinistryScreen';
 import { colors } from '../theme';
 
 // Tipos para as Tabs
@@ -35,6 +37,8 @@ export type AppStackParamList = {
     CreateAnnouncement: undefined;
     Invites: undefined;
     CreateInvite: undefined;
+    CreateMinistry: undefined;
+    EditMinistry: { ministryId: string };
 };
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -169,6 +173,26 @@ export const AppNavigator: React.FC = () => {
                 options={{
                     headerShown: true,
                     title: 'Novo Convite',
+                    headerStyle: { backgroundColor: colors.backgroundCard },
+                    headerTintColor: colors.text
+                }}
+            />
+            <Stack.Screen
+                name="CreateMinistry"
+                component={CreateMinistryScreen}
+                options={{
+                    headerShown: true,
+                    title: 'Novo Ministério',
+                    headerStyle: { backgroundColor: colors.backgroundCard },
+                    headerTintColor: colors.text
+                }}
+            />
+            <Stack.Screen
+                name="EditMinistry"
+                component={EditMinistryScreen}
+                options={{
+                    headerShown: true,
+                    title: 'Editar Ministério',
                     headerStyle: { backgroundColor: colors.backgroundCard },
                     headerTintColor: colors.text
                 }}

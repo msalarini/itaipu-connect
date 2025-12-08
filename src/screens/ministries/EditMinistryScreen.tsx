@@ -1,0 +1,201 @@
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { ScreenContainer, AppInput, AppButton } from '../../components';
+import { colors, spacing, typography, borderRadius } from '../../theme';
+import { AppStackParamList } from '../../navigation/AppNavigator';
+import { getMinistryById, updateMinistry, deleteMinistry } from '../../services/ministryService';
+
+type NavigationProp = NativeStackNavigationProp<AppStackParamList, 'EditMinistry'>;
+type EditMinistryRouteProp = RouteProp<AppStackParamList, 'EditMinistry'>;
+
+export const EditMinistryScreen: React.FC = () => {
+    const navigation = useNavigation<NavigationProp>();
+    const route = useRoute<EditMinistryRouteProp>();
+    const { ministryId } = route.params;
+
+    const [name, setName] = useState('');
+    const [description, setDescription] = useState('');
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+
+    useEffect(() => {
+        fetchMinistry();
+    }, [ministryId]);
+
+    const fetchMinistry = async () => {
+        try {
+            const ministry = await getMinistryById(ministryId);
+            if (ministry) {
+                setName(ministry.name);
+                setDescription(ministry.description || '');
+            } else {
+                Alert.alert('Erro', 'Ministério não encontrado.', [
+                    { text: 'OK', onPress: () => navigation.goBack() }
+                ]);
+            }
+        } catch (error: any) {
+            Alert.alert('Erro', error.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSave = async () => {
+        if (!name.trim()) {
+            Alert.alert('Erro', 'O nome do ministério é obrigatório.');
+            return;
+        }
+
+        setSaving(true);
+        try {
+            await updateMinistry(ministryId, { name, description });
+            Alert.alert('Sucesso', 'Ministério atualizado com sucesso!', [
+                { text: 'OK', onPress: () => navigation.goBack() }
+            ]);
+        } catch (error: any) {
+            Alert.alert('Erro', error.message || 'Não foi possível atualizar o ministério.');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleDelete = () => {
+        Alert.alert(
+            'Excluir Ministério',
+            'Tem certeza que deseja excluir este ministério? Esta ação não pode ser desfeita e todos os dados relacionados (mensagens, membros) serão perdidos.',
+            [
+                { text: 'Cancelar', style: 'cancel' },
+                {
+                    text: 'Excluir',
+                    style: 'destructive',
+                    onPress: async () => {
+                        setDeleting(true);
+                        try {
+                            await deleteMinistry(ministryId);
+                            Alert.alert('Sucesso', 'Ministério excluído com sucesso!', [
+                                { text: 'OK', onPress: () => navigation.navigate('MainTabs') }
+                            ]);
+                        } catch (error: any) {
+                            Alert.alert('Erro', error.message || 'Não foi possível excluir o ministério.');
+                        } finally {
+                            setDeleting(false);
+                        }
+                    },
+                },
+            ]
+        );
+    };
+
+    if (loading) {
+        return (
+            <ScreenContainer>
+                <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
+            </ScreenContainer>
+        );
+    }
+
+    return (
+        <ScreenContainer scrollable>
+            <View style={styles.container}>
+                <Text style={styles.title}>Editar Ministério</Text>
+
+                <View style={styles.form}>
+                    <AppInput
+                        label="Nome do Ministério"
+                        placeholder="Ex: Louvor, Jovens, Casais..."
+                        value={name}
+                        onChangeText={setName}
+                    />
+
+                    <AppInput
+                        label="Descrição (Opcional)"
+                        placeholder="Descreva o propósito do ministério..."
+                        value={description}
+                        onChangeText={setDescription}
+                        multiline
+                        numberOfLines={4}
+                    />
+
+                    <AppButton
+                        title="Salvar Alterações"
+                        variant="primary"
+                        fullWidth
+                        onPress={handleSave}
+                        loading={saving}
+                        style={styles.saveButton}
+                    />
+
+                    <AppButton
+                        title="Cancelar"
+                        variant="outline"
+                        fullWidth
+                        onPress={() => navigation.goBack()}
+                    />
+
+                    <View style={styles.dangerZone}>
+                        <Text style={styles.dangerTitle}>Zona de Perigo</Text>
+                        <Text style={styles.dangerText}>
+                            Excluir o ministério removerá permanentemente todas as mensagens e membros associados.
+                        </Text>
+                        <AppButton
+                            title={deleting ? 'Excluindo...' : 'Excluir Ministério'}
+                            variant="outline"
+                            fullWidth
+                            onPress={handleDelete}
+                            loading={deleting}
+                            style={styles.deleteButton}
+                        />
+                    </View>
+                </View>
+            </View>
+        </ScreenContainer>
+    );
+};
+
+const styles = StyleSheet.create({
+    loader: {
+        flex: 1,
+        justifyContent: 'center',
+    },
+    container: {
+        flex: 1,
+        padding: spacing.lg,
+    },
+    title: {
+        fontSize: typography.sizes['2xl'],
+        fontWeight: typography.weights.bold,
+        color: colors.text,
+        marginBottom: spacing.xl,
+    },
+    form: {
+        gap: spacing.md,
+    },
+    saveButton: {
+        marginTop: spacing.lg,
+    },
+    dangerZone: {
+        marginTop: spacing['2xl'],
+        padding: spacing.lg,
+        backgroundColor: colors.backgroundCard,
+        borderRadius: borderRadius.lg,
+        borderWidth: 1,
+        borderColor: colors.error,
+    },
+    dangerTitle: {
+        fontSize: typography.sizes.lg,
+        fontWeight: typography.weights.bold,
+        color: colors.error,
+        marginBottom: spacing.sm,
+    },
+    dangerText: {
+        fontSize: typography.sizes.sm,
+        color: colors.textSecondary,
+        marginBottom: spacing.md,
+    },
+    deleteButton: {
+        borderColor: colors.error,
+    },
+});
