@@ -119,16 +119,113 @@ export const MinistryMembersScreen: React.FC = () => {
         }
     };
 
+    const handleMemberActions = (member: Member) => {
+        // Don't allow actions on yourself
+        if (member.user_id === user?.id) {
+            Alert.alert('Ação não permitida', 'Você não pode modificar sua própria participação.');
+            return;
+        }
+
+        // Only LEADER or PASTOR can manage members
+        if (currentUserRole !== 'LEADER' && !isPastor) {
+            return;
+        }
+
+        const actions: { text: string; onPress?: () => void; style?: 'cancel' | 'destructive' }[] = [
+            { text: 'Cancelar', style: 'cancel' },
+        ];
+
+        if (member.ministry_role === 'MEMBER') {
+            actions.push({
+                text: 'Promover para Líder',
+                onPress: () => handleChangeRole(member, 'LEADER'),
+            });
+        } else {
+            actions.push({
+                text: 'Rebaixar para Membro',
+                onPress: () => handleChangeRole(member, 'MEMBER'),
+            });
+        }
+
+        actions.push({
+            text: 'Remover do Ministério',
+            style: 'destructive',
+            onPress: () => handleRemoveMember(member),
+        });
+
+        Alert.alert(member.profile.name, 'O que deseja fazer?', actions);
+    };
+
+    const handleChangeRole = async (member: Member, newRole: 'MEMBER' | 'LEADER') => {
+        try {
+            const { error } = await supabase
+                .from('ministry_members')
+                .update({ ministry_role: newRole })
+                .eq('ministry_id', ministryId)
+                .eq('user_id', member.user_id);
+
+            if (error) throw error;
+
+            Alert.alert('Sucesso', `${member.profile.name} agora é ${newRole === 'LEADER' ? 'Líder' : 'Membro'}.`);
+            fetchMembers();
+        } catch (error: any) {
+            Alert.alert('Erro', error.message);
+        }
+    };
+
+    const handleRemoveMember = (member: Member) => {
+        Alert.alert(
+            'Remover Membro',
+            `Tem certeza que deseja remover ${member.profile.name} do ministério?`,
+            [
+                { text: 'Cancelar', style: 'cancel' },
+                {
+                    text: 'Remover',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            const { error } = await supabase
+                                .from('ministry_members')
+                                .delete()
+                                .eq('ministry_id', ministryId)
+                                .eq('user_id', member.user_id);
+
+                            if (error) throw error;
+
+                            Alert.alert('Sucesso', `${member.profile.name} foi removido do ministério.`);
+                            fetchMembers();
+                        } catch (error: any) {
+                            Alert.alert('Erro', error.message);
+                        }
+                    },
+                },
+            ]
+        );
+    };
+
+    const canManageMembers = currentUserRole === 'LEADER' || isPastor;
+
     const renderMemberItem = ({ item }: { item: Member }) => (
-        <View style={styles.card}>
+        <TouchableOpacity
+            style={styles.card}
+            onPress={() => handleMemberActions(item)}
+            disabled={!canManageMembers}
+            activeOpacity={canManageMembers ? 0.7 : 1}
+        >
             <View style={styles.avatarPlaceholder}>
                 <Text style={styles.avatarText}>{item.profile.name.substring(0, 2).toUpperCase()}</Text>
             </View>
             <View style={styles.cardContent}>
-                <Text style={styles.memberName}>{item.profile.name}</Text>
+                <Text style={styles.memberName}>
+                    {item.profile.name}
+                    {item.user_id === user?.id && ' (Você)'}
+                </Text>
                 <Text style={styles.memberRole}>{item.ministry_role === 'LEADER' ? 'Líder' : 'Membro'}</Text>
             </View>
-        </View>
+            {canManageMembers && item.user_id !== user?.id && (
+                <Text style={styles.actionHint}>⋮</Text>
+            )}
+        </TouchableOpacity>
     );
 
     return (
@@ -138,12 +235,12 @@ export const MinistryMembersScreen: React.FC = () => {
                 <Text style={styles.subtitle}>{ministryName}</Text>
             </View>
 
-            {currentUserRole === 'LEADER' && (
+            {(currentUserRole === 'LEADER' || isPastor) && (
                 <View style={styles.actions}>
                     <AppButton
-                        title="+ Convidar Membro"
+                        title="+ Adicionar Membro"
                         variant="primary"
-                        onPress={handleGenerateInvite}
+                        onPress={() => navigation.navigate('AddMember', { ministryId, ministryName })}
                         style={styles.inviteButton}
                     />
                 </View>
@@ -248,5 +345,10 @@ const styles = StyleSheet.create({
         color: colors.textMuted,
         textAlign: 'center',
         fontSize: typography.sizes.md,
+    },
+    actionHint: {
+        fontSize: 20,
+        color: colors.textMuted,
+        marginLeft: spacing.sm,
     },
 });

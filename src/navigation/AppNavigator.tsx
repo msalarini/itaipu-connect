@@ -16,6 +16,7 @@ import { InvitesScreen } from '../screens/invites/InvitesScreen';
 import { CreateInviteScreen } from '../screens/invites/CreateInviteScreen';
 import { CreateMinistryScreen } from '../screens/ministries/CreateMinistryScreen';
 import { EditMinistryScreen } from '../screens/ministries/EditMinistryScreen';
+import { AddMemberScreen } from '../screens/ministries/AddMemberScreen';
 import { colors } from '../theme';
 
 // Tipos para as Tabs
@@ -39,6 +40,7 @@ export type AppStackParamList = {
     CreateInvite: undefined;
     CreateMinistry: undefined;
     EditMinistry: { ministryId: string };
+    AddMember: { ministryId: string; ministryName: string };
 };
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -193,6 +195,16 @@ export const AppNavigator: React.FC = () => {
                 options={{
                     headerShown: true,
                     title: 'Editar Ministério',
+                    headerStyle: { backgroundColor: colors.backgroundCard },
+                    headerTintColor: colors.text
+                }}
+            />
+            <Stack.Screen
+                name="AddMember"
+                component={AddMemberScreen}
+                options={{
+                    headerShown: true,
+                    title: 'Adicionar Membro',
                     headerStyle: { backgroundColor: colors.backgroundCard },
                     headerTintColor: colors.text
                 }}
