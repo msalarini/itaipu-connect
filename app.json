@@ -23,7 +23,10 @@
       },
       "package": "com.itaipuconnect.app",
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -50,6 +53,11 @@
           "cameraPermission": "O app precisa acessar sua câmera para tirar fotos."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "614e581e-cad5-453c-ba90-43849df911b1"
+      }
+    }
   }
 }

@@ -17,6 +17,7 @@ import { CreateInviteScreen } from '../screens/invites/CreateInviteScreen';
 import { CreateMinistryScreen } from '../screens/ministries/CreateMinistryScreen';
 import { EditMinistryScreen } from '../screens/ministries/EditMinistryScreen';
 import { AddMemberScreen } from '../screens/ministries/AddMemberScreen';
+import { EventDetailsScreen } from '../screens/events/EventDetailsScreen';
 import { colors } from '../theme';
 
 // Tipos para as Tabs
@@ -41,6 +42,7 @@ export type AppStackParamList = {
     CreateMinistry: undefined;
     EditMinistry: { ministryId: string };
     AddMember: { ministryId: string; ministryName: string };
+    EventDetails: { event: any }; // Using any for simplicity for now, ideally import Event interface
 };
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -207,6 +209,16 @@ export const AppNavigator: React.FC = () => {
                     title: 'Adicionar Membro',
                     headerStyle: { backgroundColor: colors.backgroundCard },
                     headerTintColor: colors.text
+                }}
+            />
+            <Stack.Screen
+                name="EventDetails"
+                component={EventDetailsScreen}
+                options={{
+                    headerShown: true,
+                    title: 'Detalhes do Evento',
+                    headerStyle: { backgroundColor: colors.backgroundCard },
+                    headerTintColor: colors.text,
                 }}
             />
         </Stack.Navigator>

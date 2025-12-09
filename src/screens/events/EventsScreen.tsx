@@ -59,7 +59,11 @@ export const EventsScreen: React.FC = () => {
     };
 
     const renderEventItem = ({ item }: { item: Event }) => (
-        <View style={styles.card}>
+        <TouchableOpacity
+            style={styles.card}
+            onPress={() => navigation.navigate('EventDetails', { event: item })}
+            activeOpacity={0.7}
+        >
             <View style={styles.dateBadge}>
                 <Text style={styles.dateDay}>{format(new Date(item.event_date), 'dd', { locale: ptBR })}</Text>
                 <Text style={styles.dateMonth}>{format(new Date(item.event_date), 'MMM', { locale: ptBR }).toUpperCase()}</Text>
@@ -75,10 +79,10 @@ export const EventsScreen: React.FC = () => {
                     <Text style={styles.ministryBadge}>{item.ministry.name}</Text>
                 )}
                 {item.description && (
-                    <Text style={styles.cardDescription}>{item.description}</Text>
+                    <Text style={styles.cardDescription} numberOfLines={2}>{item.description}</Text>
                 )}
             </View>
-        </View>
+        </TouchableOpacity>
     );
 
     return (
