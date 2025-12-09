@@ -15,6 +15,7 @@ interface UserProfile {
     name: string;
     phone?: string;
     bio?: string;
+    avatar_url?: string;
     global_role: GlobalRole;
 }
 

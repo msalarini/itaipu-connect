@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Alert, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Alert, ScrollView, ActivityIndicator, TouchableOpacity, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ScreenContainer, AppInput, AppButton } from '../../components';
@@ -83,11 +83,19 @@ export const ProfileScreen: React.FC = () => {
     return (
         <ScreenContainer scrollable>
             <View style={styles.header}>
-                <View style={styles.avatarPlaceholder}>
-                    <Text style={styles.avatarText}>
-                        {profile?.name?.substring(0, 2).toUpperCase() || 'US'}
-                    </Text>
+                <View style={[styles.avatarPlaceholder, profile?.avatar_url && styles.avatarImage]}>
+                    {profile?.avatar_url ? (
+                        <Image
+                            source={{ uri: profile.avatar_url }}
+                            style={styles.avatar}
+                        />
+                    ) : (
+                        <Text style={styles.avatarText}>
+                            {profile?.name?.substring(0, 2).toUpperCase() || 'US'}
+                        </Text>
+                    )}
                 </View>
+                <Text style={styles.name}>{profile?.name}</Text>
                 <Text style={styles.email}>{profile?.email}</Text>
                 <View style={styles.roleBadge}>
                     <Text style={styles.roleText}>{profile?.global_role || 'MEMBER'}</Text>
@@ -95,38 +103,23 @@ export const ProfileScreen: React.FC = () => {
             </View>
 
             <View style={styles.form}>
-                <Text style={styles.sectionTitle}>Editar Informações</Text>
-
-                <AppInput
-                    label="Nome Completo"
-                    value={name}
-                    onChangeText={setName}
-                    placeholder="Seu nome"
-                />
-
-                <AppInput
-                    label="Telefone (WhatsApp)"
-                    value={phone}
-                    onChangeText={setPhone}
-                    placeholder="(00) 00000-0000"
-                    keyboardType="phone-pad"
-                />
-
-                <AppInput
-                    label="Bio / Sobre mim"
-                    value={bio}
-                    onChangeText={setBio}
-                    placeholder="Conte um pouco sobre você..."
-                    multiline
-                    numberOfLines={3}
-                />
+                <View style={styles.infoSection}>
+                    <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>Telefone</Text>
+                        <Text style={styles.infoValue}>{profile?.phone || 'Não informado'}</Text>
+                    </View>
+                    <View style={styles.dividerLight} />
+                    <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>Bio</Text>
+                        <Text style={styles.infoValue}>{profile?.bio || 'Sem biografia'}</Text>
+                    </View>
+                </View>
 
                 <AppButton
-                    title="Salvar Alterações"
-                    variant="primary"
-                    onPress={handleSave}
-                    loading={saving}
-                    style={styles.saveButton}
+                    title="Editar Perfil"
+                    variant="outline"
+                    onPress={() => navigation.navigate('EditProfile')}
+                    style={styles.editButton}
                 />
 
                 <View style={styles.divider} />
@@ -191,15 +184,32 @@ const styles = StyleSheet.create({
         fontWeight: typography.weights.bold,
         color: colors.white,
     },
+    avatarImage: {
+        borderWidth: 2,
+        borderColor: colors.primary,
+        overflow: 'hidden',
+        padding: 0,
+        backgroundColor: colors.background,
+    },
+    avatar: {
+        width: '100%',
+        height: '100%',
+    },
+    name: {
+        fontSize: typography.sizes.xl,
+        fontWeight: typography.weights.bold,
+        color: colors.text,
+        marginBottom: 2,
+    },
     email: {
-        fontSize: typography.sizes.md,
+        fontSize: typography.sizes.sm,
         color: colors.textSecondary,
-        marginBottom: spacing.xs,
+        marginBottom: spacing.sm,
     },
     roleBadge: {
         backgroundColor: colors.backgroundCard,
         paddingHorizontal: spacing.md,
-        paddingVertical: spacing.xs,
+        paddingVertical: 2,
         borderRadius: borderRadius.full,
         borderWidth: 1,
         borderColor: colors.border,
@@ -214,6 +224,34 @@ const styles = StyleSheet.create({
         backgroundColor: colors.backgroundCard,
         borderRadius: borderRadius.xl,
         marginBottom: spacing.xl,
+    },
+    infoSection: {
+        marginBottom: spacing.lg,
+    },
+    infoRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: spacing.sm,
+    },
+    infoLabel: {
+        fontSize: typography.sizes.sm,
+        color: colors.textSecondary,
+    },
+    infoValue: {
+        fontSize: typography.sizes.md,
+        color: colors.text,
+        fontWeight: typography.weights.medium,
+        maxWidth: '70%',
+        textAlign: 'right',
+    },
+    dividerLight: {
+        height: 1,
+        backgroundColor: colors.backgroundHover,
+        marginVertical: spacing.xs,
+    },
+    editButton: {
+        marginTop: spacing.xs,
     },
     sectionTitle: {
         fontSize: typography.sizes.lg,
