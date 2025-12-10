@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Alert, TouchableOpacity, Platform, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { Picker } from '@react-native-picker/picker'; // Install: expo install @react-native-picker/picker
+import { format } from 'date-fns';
 import { ScreenContainer, AppInput, AppButton } from '../../components';
 import { colors, spacing, typography, borderRadius } from '../../theme';
 import { supabase } from '../../services/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import { listMinistries, Ministry } from '../../services/ministryService';
 
 export const CreateEventScreen: React.FC = () => {
     const navigation = useNavigation();
@@ -13,19 +17,47 @@ export const CreateEventScreen: React.FC = () => {
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [location, setLocation] = useState('');
-    const [date, setDate] = useState(''); // Simple text input for MVP (YYYY-MM-DD HH:mm)
+
+    // Date State
+    const [date, setDate] = useState(new Date());
+    const [showDatePicker, setShowDatePicker] = useState(false);
+    const [showTimePicker, setShowTimePicker] = useState(false);
+
+    // Ministry State
+    const [ministries, setMinistries] = useState<Ministry[]>([]);
+    const [selectedMinistryId, setSelectedMinistryId] = useState<string | null>(null);
+    const [loadingMinistries, setLoadingMinistries] = useState(false);
+
     const [loading, setLoading] = useState(false);
 
-    const handleCreate = async () => {
-        if (!title || !location || !date) {
-            Alert.alert('Erro', 'Preencha os campos obrigatórios.');
-            return;
-        }
+    const canSelectMinistry = profile?.global_role === 'LEADER' || profile?.global_role === 'PASTOR' || profile?.role === 'admin';
 
-        // Basic date validation
-        const eventDate = new Date(date);
-        if (isNaN(eventDate.getTime())) {
-            Alert.alert('Erro', 'Formato de data inválido. Use AAAA-MM-DD HH:mm');
+    useEffect(() => {
+        if (canSelectMinistry) {
+            fetchMinistries();
+        }
+    }, [canSelectMinistry]);
+
+    const fetchMinistries = async () => {
+        setLoadingMinistries(true);
+        try {
+            const data = await listMinistries();
+            setMinistries(data);
+
+            // If user is a leader of a specific ministry, default to it?
+            if (profile?.leader_ministry_id) {
+                setSelectedMinistryId(profile.leader_ministry_id);
+            }
+        } catch (error) {
+            console.error('Failed to load ministries', error);
+        } finally {
+            setLoadingMinistries(false);
+        }
+    };
+
+    const handleCreate = async () => {
+        if (!title || !location) {
+            Alert.alert('Erro', 'Preencha os campos obrigatórios (Título e Local).');
             return;
         }
 
@@ -35,11 +67,9 @@ export const CreateEventScreen: React.FC = () => {
                 title,
                 description,
                 location,
-                event_date: eventDate.toISOString(),
+                event_date: date.toISOString(),
                 created_by: profile?.id,
-                // For MVP, creating global events by default if PASTOR, or we could add a ministry selector
-                // Let's assume global for PASTOR, and we'd need logic for LEADER to select their ministry
-                // For now, simple global insert or NULL ministry_id
+                ministry_id: selectedMinistryId === 'global' ? null : selectedMinistryId
             });
 
             if (error) {
@@ -48,12 +78,47 @@ export const CreateEventScreen: React.FC = () => {
                 Alert.alert('Sucesso', 'Evento criado com sucesso!');
                 navigation.goBack();
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            Alert.alert('Erro', 'Ocorreu um erro inesperado.');
+            Alert.alert('Erro', 'Ocorreu um erro inesperado: ' + error.message);
         } finally {
             setLoading(false);
         }
+    };
+
+    const onChangeDate = (event: any, selectedDate?: Date) => {
+        if (Platform.OS === 'android') {
+            setShowDatePicker(false);
+        }
+        if (selectedDate) {
+            const currentDate = selectedDate;
+            const currentTime = date; // keep time
+            currentDate.setHours(currentTime.getHours());
+            currentDate.setMinutes(currentTime.getMinutes());
+            setDate(currentDate);
+
+            if (Platform.OS === 'android') {
+                // On Android, flow is usually Date -> Time
+                // setShowTimePicker(true); // Optional: autotrigger time picker
+            }
+        }
+    };
+
+    const onChangeTime = (event: any, selectedDate?: Date) => {
+        if (Platform.OS === 'android') {
+            setShowTimePicker(false);
+        }
+        if (selectedDate) {
+            setDate(selectedDate); // Time picker returns full date obj with updated time
+        }
+    };
+
+    const showDateMode = () => {
+        setShowDatePicker(true);
+    };
+
+    const showTimeMode = () => {
+        setShowTimePicker(true);
     };
 
     return (
@@ -64,7 +129,7 @@ export const CreateEventScreen: React.FC = () => {
                 <View style={styles.form}>
                     <AppInput
                         label="Título *"
-                        placeholder="Culto de Jovens"
+                        placeholder="Ex: Culto de Jovens"
                         value={title}
                         onChangeText={setTitle}
                     />
@@ -80,17 +145,77 @@ export const CreateEventScreen: React.FC = () => {
 
                     <AppInput
                         label="Local *"
-                        placeholder="Templo Principal"
+                        placeholder="Ex: Templo Principal"
                         value={location}
                         onChangeText={setLocation}
                     />
 
-                    <AppInput
-                        label="Data e Hora * (AAAA-MM-DD HH:mm)"
-                        placeholder="2025-12-25 19:00"
-                        value={date}
-                        onChangeText={setDate}
-                    />
+                    {/* Date & Time Selection */}
+                    <View style={styles.dateTimeContainer}>
+                        <Text style={styles.label}>Data e Hora *</Text>
+                        <View style={styles.dateTimeRow}>
+                            <TouchableOpacity onPress={showDateMode} style={styles.dateButton}>
+                                <Text style={styles.dateButtonText}>
+                                    📅 {format(date, 'dd/MM/yyyy')}
+                                </Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity onPress={showTimeMode} style={styles.dateButton}>
+                                <Text style={styles.dateButtonText}>
+                                    ⏰ {format(date, 'HH:mm')}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {showDatePicker && (
+                            <DateTimePicker
+                                testID="dateTimePicker"
+                                value={date}
+                                mode="date"
+                                is24Hour={true}
+                                display="default"
+                                onChange={onChangeDate}
+                            />
+                        )}
+
+                        {showTimePicker && (
+                            <DateTimePicker
+                                testID="timePicker"
+                                value={date}
+                                mode="time"
+                                is24Hour={true}
+                                display="default"
+                                onChange={onChangeTime}
+                            />
+                        )}
+                    </View>
+
+                    {/* Ministry Selection */}
+                    {canSelectMinistry && (
+                        <View style={styles.pickerContainer}>
+                            <Text style={styles.label}>Ministério (Opcional)</Text>
+                            {loadingMinistries ? (
+                                <ActivityIndicator color={colors.primary} />
+                            ) : (
+                                <View style={styles.pickerWrapper}>
+                                    <Picker
+                                        selectedValue={selectedMinistryId}
+                                        onValueChange={(itemValue) => setSelectedMinistryId(itemValue)}
+                                        style={styles.picker}
+                                        dropdownIconColor={colors.text}
+                                    >
+                                        <Picker.Item label="Evento Global (Igreja)" value="global" color={colors.text} />
+                                        {ministries.map((m) => (
+                                            <Picker.Item key={m.id} label={m.name} value={m.id} color={colors.text} />
+                                        ))}
+                                    </Picker>
+                                </View>
+                            )}
+                            <Text style={styles.helperText}>
+                                Se selecionado, aparecerá apenas na aba do ministério (e na geral se filtrado). "Global" aparece para todos.
+                            </Text>
+                        </View>
+                    )}
 
                     <AppButton
                         title="Criar Evento"
@@ -123,6 +248,51 @@ const styles = StyleSheet.create({
     },
     form: {
         gap: spacing.md,
+    },
+    label: {
+        fontSize: typography.sizes.sm,
+        fontWeight: typography.weights.medium,
+        color: colors.text,
+        marginBottom: spacing.xs,
+    },
+    dateTimeContainer: {
+        marginBottom: spacing.md,
+    },
+    dateTimeRow: {
+        flexDirection: 'row',
+        gap: spacing.md,
+    },
+    dateButton: {
+        flex: 1,
+        backgroundColor: colors.backgroundCard,
+        borderWidth: 1,
+        borderColor: colors.border,
+        borderRadius: borderRadius.md,
+        padding: spacing.md,
+        alignItems: 'center',
+    },
+    dateButtonText: {
+        color: colors.text,
+        fontSize: typography.sizes.md,
+    },
+    pickerContainer: {
+        marginBottom: spacing.md,
+    },
+    pickerWrapper: {
+        backgroundColor: colors.backgroundCard,
+        borderWidth: 1,
+        borderColor: colors.border,
+        borderRadius: borderRadius.md,
+        overflow: 'hidden', // Important for rounded corners on Android
+    },
+    picker: {
+        color: colors.text,
+        // height: 50, // Optional constraint
+    },
+    helperText: {
+        fontSize: typography.sizes.xs,
+        color: colors.textMuted,
+        marginTop: spacing.xs,
     },
     button: {
         marginTop: spacing.md,

@@ -17,6 +17,9 @@ interface UserProfile {
     bio?: string;
     avatar_url?: string;
     global_role: GlobalRole;
+    role?: string; // Legacy/Local role if any
+    leader_ministry_id?: string;
+    ministry_coordinator_id?: string;
 }
 
 interface AuthContextData {

@@ -21,6 +21,12 @@ interface MessageAttachmentData {
     file_name: string;
 }
 
+interface MessageReaction {
+    id?: string;
+    emoji: string;
+    user_id: string;
+}
+
 interface Message {
     id: string;
     content: string;
@@ -30,6 +36,7 @@ interface Message {
         name: string;
     };
     attachments?: MessageAttachmentData[];
+    reactions?: MessageReaction[];
 }
 
 export const MinistryChannelScreen: React.FC = () => {
@@ -81,7 +88,8 @@ export const MinistryChannelScreen: React.FC = () => {
           created_at,
           author_id,
           author:profiles(name),
-          attachments:message_attachments(id, file_url, file_type, file_name)
+          attachments:message_attachments(id, file_url, file_type, file_name),
+          reactions:message_reactions(emoji, user_id)
         `)
                 .eq('ministry_id', ministryId)
                 .is('parent_message_id', null)
@@ -99,7 +107,7 @@ export const MinistryChannelScreen: React.FC = () => {
         }
     };
 
-    const fetchSingleMessage = async (messageId: string) => {
+    const fetchSingleMessage = async (messageId: string, isUpdate = false) => {
         const { data, error } = await supabase
             .from('messages')
             .select(`
@@ -108,14 +116,23 @@ export const MinistryChannelScreen: React.FC = () => {
         created_at,
         author_id,
         author:profiles(name),
-        attachments:message_attachments(id, file_url, file_type, file_name)
+        attachments:message_attachments(id, file_url, file_type, file_name),
+        reactions:message_reactions(emoji, user_id)
       `)
             .eq('id', messageId)
             .single();
 
         if (!error && data) {
-            setMessages((prev) => [...prev, data as any]);
-            setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+            setMessages((prev) => {
+                const exists = prev.find(m => m.id === messageId);
+                if (exists) {
+                    return prev.map(m => m.id === messageId ? data as any : m);
+                }
+                return [...prev, data as any];
+            });
+            if (!isUpdate) {
+                setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+            }
         }
     };
 
@@ -178,9 +195,57 @@ export const MinistryChannelScreen: React.FC = () => {
         }
     };
 
+    // --- Reaction Logic ---
+    const [reactingToMessageId, setReactingToMessageId] = useState<string | null>(null);
+    const AVAILABLE_REACTIONS = ['👍', '❤️', '😂', '😮', '🙏', '🎉'];
+
+    const handleToggleReaction = async (messageId: string, emoji: string) => {
+        if (!user) return;
+        setReactingToMessageId(null); // Close modal if open
+
+        try {
+            // Check if user already reacted with this emoji
+            const message = messages.find(m => m.id === messageId);
+            const existingReaction = message?.reactions?.find(r => r.emoji === emoji && r.user_id === user.id);
+
+            if (existingReaction) {
+                // Remove reaction
+                await supabase
+                    .from('message_reactions')
+                    .delete()
+                    .eq('message_id', messageId)
+                    .eq('user_id', user.id)
+                    .eq('emoji', emoji);
+            } else {
+                // Add reaction
+                await supabase
+                    .from('message_reactions')
+                    .insert({
+                        message_id: messageId,
+                        user_id: user.id,
+                        emoji
+                    });
+            }
+
+            // Refresh this message specifically to get latest state
+            fetchSingleMessage(messageId, true);
+
+        } catch (error) {
+            console.error('Error toggling reaction:', error);
+        }
+    };
+
     const renderMessageItem = ({ item }: { item: Message }) => {
         const isMyMessage = item.author_id === user?.id;
         const attachment = item.attachments && item.attachments.length > 0 ? item.attachments[0] : null;
+
+        // Group reactions
+        const reactionCounts = item.reactions?.reduce((acc, curr) => {
+            acc[curr.emoji] = (acc[curr.emoji] || 0) + 1;
+            return acc;
+        }, {} as Record<string, number>);
+
+        const userReactions = item.reactions?.filter(r => r.user_id === user?.id).map(r => r.emoji) || [];
 
         return (
             <View style={[
@@ -190,10 +255,15 @@ export const MinistryChannelScreen: React.FC = () => {
                 {!isMyMessage && (
                     <Text style={styles.authorName}>{item.author?.name || 'Desconhecido'}</Text>
                 )}
-                <View style={[
-                    styles.messageBubble,
-                    isMyMessage ? styles.myMessageBubble : styles.otherMessageBubble
-                ]}>
+                <TouchableOpacity
+                    onLongPress={() => setReactingToMessageId(item.id)}
+                    delayLongPress={300}
+                    activeOpacity={0.9}
+                    style={[
+                        styles.messageBubble,
+                        isMyMessage ? styles.myMessageBubble : styles.otherMessageBubble
+                    ]}
+                >
                     {item.content && item.content !== '(anexo)' && (
                         <Text style={[
                             styles.messageText,
@@ -217,7 +287,26 @@ export const MinistryChannelScreen: React.FC = () => {
                     ]}>
                         {format(new Date(item.created_at), 'HH:mm', { locale: ptBR })}
                     </Text>
-                </View>
+
+                    {/* Reactions Display */}
+                    {reactionCounts && Object.keys(reactionCounts).length > 0 && (
+                        <View style={styles.reactionsContainer}>
+                            {Object.entries(reactionCounts).map(([emoji, count]) => {
+                                const iReacted = userReactions.includes(emoji);
+                                return (
+                                    <TouchableOpacity
+                                        key={emoji}
+                                        style={[styles.reactionBadge, iReacted && styles.reactionBadgeActive]}
+                                        onPress={() => handleToggleReaction(item.id, emoji)}
+                                    >
+                                        <Text style={styles.reactionText}>{emoji} {count}</Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
+                    )}
+                </TouchableOpacity>
+
                 <TouchableOpacity
                     onPress={() => navigation.navigate('Thread', { rootMessageId: item.id, ministryId })}
                     style={styles.threadButton}
@@ -291,6 +380,27 @@ export const MinistryChannelScreen: React.FC = () => {
                 onClose={() => setShowAttachmentPicker(false)}
                 onSelectFile={handleSelectFile}
             />
+
+            {/* Reaction Picker Modal (Simple Overlay) */}
+            {reactingToMessageId && (
+                <TouchableOpacity
+                    style={styles.reactionOverlay}
+                    activeOpacity={1}
+                    onPress={() => setReactingToMessageId(null)}
+                >
+                    <View style={styles.reactionPicker}>
+                        {AVAILABLE_REACTIONS.map(emoji => (
+                            <TouchableOpacity
+                                key={emoji}
+                                style={styles.reactionOption}
+                                onPress={() => handleToggleReaction(reactingToMessageId, emoji)}
+                            >
+                                <Text style={styles.reactionOptionText}>{emoji}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                </TouchableOpacity>
+            )}
         </KeyboardAvoidingView>
     );
 };
@@ -417,5 +527,57 @@ const styles = StyleSheet.create({
     sendButtonText: {
         color: colors.white,
         fontWeight: typography.weights.bold,
+    },
+    // Reactions Styles
+    reactionsContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        marginTop: 4,
+        gap: 4,
+    },
+    reactionBadge: {
+        backgroundColor: colors.backgroundCard,
+        borderRadius: 12,
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    reactionBadgeActive: {
+        backgroundColor: colors.primary + '20', // 20% opacity primary
+        borderColor: colors.primary,
+    },
+    reactionText: {
+        fontSize: 10,
+        color: colors.text,
+    },
+    reactionOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 1000,
+    },
+    reactionPicker: {
+        backgroundColor: colors.backgroundCard,
+        borderRadius: borderRadius.xl,
+        padding: spacing.md,
+        flexDirection: 'row',
+        gap: spacing.md,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+        elevation: 5,
+    },
+    reactionOption: {
+        padding: spacing.xs,
+    },
+    reactionOptionText: {
+        fontSize: 24,
     },
 });
