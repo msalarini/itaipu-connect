@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Alert } from 'react-native';
+import { View, Text, StyleSheet, Alert, Switch } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { ScreenContainer, AppInput, AppButton } from '../../components';
 import { colors, spacing, typography } from '../../theme';
 import { supabase } from '../../services/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import { sendBroadcastNotification } from '../../services/notificationService';
 
 export const CreateAnnouncementScreen: React.FC = () => {
     const navigation = useNavigation();
@@ -12,6 +13,7 @@ export const CreateAnnouncementScreen: React.FC = () => {
 
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
+    const [sendPush, setSendPush] = useState(false);
     const [loading, setLoading] = useState(false);
 
     const handleCreate = async () => {
@@ -33,6 +35,9 @@ export const CreateAnnouncementScreen: React.FC = () => {
             if (error) {
                 Alert.alert('Erro ao criar aviso', error.message);
             } else {
+                if (sendPush) {
+                    await sendBroadcastNotification(title, content);
+                }
                 Alert.alert('Sucesso', 'Aviso publicado com sucesso!');
                 navigation.goBack();
             }
@@ -65,6 +70,16 @@ export const CreateAnnouncementScreen: React.FC = () => {
                         multiline
                         numberOfLines={6}
                     />
+
+                    <View style={styles.switchContainer}>
+                        <Text style={styles.switchLabel}>Enviar notificação push (para todos)</Text>
+                        <Switch
+                            value={sendPush}
+                            onValueChange={setSendPush}
+                            trackColor={{ false: colors.border, true: colors.primary }}
+                            thumbColor={colors.white}
+                        />
+                    </View>
 
                     <AppButton
                         title="Publicar Aviso"
@@ -100,5 +115,15 @@ const styles = StyleSheet.create({
     },
     button: {
         marginTop: spacing.md,
+    },
+    switchContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: spacing.sm,
+    },
+    switchLabel: {
+        color: colors.text,
+        fontSize: typography.sizes.md,
     },
 });

@@ -186,3 +186,92 @@ if (Platform.OS === 'android') {
         lightColor: '#6366F1', // Primary color
     });
 }
+
+/**
+ * Send a push notification to a specific token
+ */
+export async function sendPushNotification(expoPushToken: string, title: string, body: string) {
+    const message = {
+        to: expoPushToken,
+        sound: 'default',
+        title: title,
+        body: body,
+        // data: { someData: 'goes here' },
+    };
+
+    try {
+        await fetch('https://exp.host/--/api/v2/push/send', {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'Accept-encoding': 'gzip, deflate',
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(message),
+        });
+    } catch (error) {
+        console.error('Error sending notification:', error);
+    }
+}
+
+/**
+ * Send a broadcast notification to ALL users
+ * Note: In production, this should be done via Edge Functions
+ */
+export async function sendBroadcastNotification(title: string, body: string) {
+    try {
+        // 1. Fetch all tokens
+        const { data: tokens, error } = await supabase
+            .from('push_tokens')
+            .select('expo_push_token');
+
+        if (error) {
+            console.error('Error fetching push tokens:', error);
+            throw error;
+        }
+
+        if (!tokens || tokens.length === 0) {
+            console.log('No tokens found to send notification');
+            return;
+        }
+
+        // 2. Filter valid tokens and prevent duplicates
+        const uniqueTokens = [...new Set(tokens.map(t => t.expo_push_token))];
+        const validTokens = uniqueTokens.filter(t => t && t.length > 0);
+
+        if (validTokens.length === 0) {
+            console.log('No valid tokens found');
+            return;
+        }
+
+        console.log(`Sending broadcast to ${validTokens.length} devices...`);
+
+        // 3. Batch send (Expo recommends checking documentation for batch sizes)
+        // For MVP, simple loop or small batches is fine via HTTP
+        const messages = validTokens.map(token => ({
+            to: token,
+            sound: 'default',
+            title: title,
+            body: body,
+        }));
+
+        // Send in batches of 100
+        const CHUNK_SIZE = 100;
+        for (let i = 0; i < messages.length; i += CHUNK_SIZE) {
+            const batch = messages.slice(i, i + CHUNK_SIZE);
+            await fetch('https://exp.host/--/api/v2/push/send', {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'Accept-encoding': 'gzip, deflate',
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(batch),
+            });
+        }
+
+    } catch (error) {
+        console.error('Error in broadcast:', error);
+        throw error;
+    }
+}
