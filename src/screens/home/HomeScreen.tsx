@@ -86,6 +86,14 @@ export const HomeScreen: React.FC = () => {
                 >
                     <Text style={styles.announcementButtonText}>🔔 Avisos</Text>
                 </TouchableOpacity>
+                {profile?.global_role === 'PASTOR' && (
+                    <TouchableOpacity
+                        style={[styles.announcementButton, { marginLeft: 8 }]}
+                        onPress={() => navigation.navigate('Members')}
+                    >
+                        <Text style={styles.announcementButtonText}>👥 Pessoas</Text>
+                    </TouchableOpacity>
+                )}
             </View>
 
             {loading ? (

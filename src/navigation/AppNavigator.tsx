@@ -19,6 +19,7 @@ import { EditMinistryScreen } from '../screens/ministries/EditMinistryScreen';
 import { AddMemberScreen } from '../screens/ministries/AddMemberScreen';
 import { EventDetailsScreen } from '../screens/events/EventDetailsScreen';
 import { EditProfileScreen } from '../screens/profile/EditProfileScreen';
+import { MembersScreen } from '../screens/admin/MembersScreen';
 import { colors } from '../theme';
 
 // Tipos para as Tabs
@@ -45,6 +46,7 @@ export type AppStackParamList = {
     AddMember: { ministryId: string; ministryName: string };
     EventDetails: { event: any };
     EditProfile: undefined;
+    Members: undefined;
 };
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -229,6 +231,16 @@ export const AppNavigator: React.FC = () => {
                 options={{
                     headerShown: true,
                     title: 'Editar Perfil',
+                    headerStyle: { backgroundColor: colors.backgroundCard },
+                    headerTintColor: colors.text,
+                }}
+            />
+            <Stack.Screen
+                name="Members"
+                component={MembersScreen}
+                options={{
+                    headerShown: true,
+                    title: 'Gestão de Pessoas',
                     headerStyle: { backgroundColor: colors.backgroundCard },
                     headerTintColor: colors.text,
                 }}
