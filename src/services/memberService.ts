@@ -59,4 +59,68 @@ export const memberService = {
             throw new Error(error.message);
         }
     }
+}
+
+
+export interface UserSearchResult {
+    id: string;
+    email: string;
+    name: string;
+    avatar_url?: string;
+}
+
+/**
+ * Get users not in a specific ministry (for adding members)
+ */
+export const getUsersNotInMinistry = async (ministryId: string, searchQuery: string = ''): Promise<UserSearchResult[]> => {
+    // 1. Get all profiles
+    let query = supabase
+        .from('profiles')
+        .select('id, email, name, avatar_url');
+
+    if (searchQuery) {
+        query = query.or(`name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`);
+    }
+
+    const { data: profiles, error: profilesError } = await query;
+
+    if (profilesError) {
+        throw new Error(profilesError.message);
+    }
+
+    // 2. Get members of this ministry
+    const { data: existingMembers, error: membersError } = await supabase
+        .from('ministry_members')
+        .select('user_id')
+        .eq('ministry_id', ministryId);
+
+    if (membersError) {
+        throw new Error(membersError.message);
+    }
+
+    const existingIds = new Set(existingMembers?.map(m => m.user_id));
+
+    // 3. Filter out existing members
+    return profiles
+        ?.filter(p => !existingIds.has(p.id))
+        .map(p => ({
+            id: p.id,
+            email: p.email,
+            name: p.name,
+            avatar_url: p.avatar_url
+        })) || [];
+};
+
+export const addMemberToMinistry = async (ministryId: string, userId: string, role: 'MEMBER' | 'LEADER'): Promise<void> => {
+    const { error } = await supabase
+        .from('ministry_members')
+        .insert({
+            ministry_id: ministryId,
+            user_id: userId,
+            role: role
+        });
+
+    if (error) {
+        throw new Error(error.message);
+    }
 };
