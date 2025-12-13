@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, Alert, Switch } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { ScreenContainer, AppInput, AppButton } from '../../components';
-import { colors, spacing, typography } from '../../theme';
+import { spacing, typography } from '../../theme';
+import { useTheme } from '../../context/ThemeContext';
 import { supabase } from '../../services/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { sendBroadcastNotification } from '../../services/notificationService';
@@ -10,6 +11,8 @@ import { sendBroadcastNotification } from '../../services/notificationService';
 export const CreateAnnouncementScreen: React.FC = () => {
     const navigation = useNavigation();
     const { profile } = useAuth();
+    const { colors } = useTheme();
+    const styles = React.useMemo(() => getStyles(colors), [colors]);
 
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
@@ -100,7 +103,7 @@ export const CreateAnnouncementScreen: React.FC = () => {
     );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
     container: {
         padding: spacing.lg,
     },

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Keyboard
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { AppStackParamList } from '../../navigation/AppNavigator';
 import { colors, spacing, typography, borderRadius } from '../../theme';
+import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../services/supabaseClient';
 import { format } from 'date-fns';

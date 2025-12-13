@@ -1,23 +1,24 @@
-export const colors = {
-    // Primary
+// Palette definitions
+const palette = {
     primary: '#2563EB',
     primaryDark: '#1E40AF',
     primaryLight: '#3B82F6',
 
-    // Secondary
     secondary: '#6366F1', // indigo-500
     secondaryDark: '#4F46E5',
 
-    // Background
-    background: '#020617', // slate-950
-    backgroundCard: '#0B1120',
-    backgroundHover: '#1E293B', // slate-800
-    muted: '#1E293B', // slate-800
-
-    // Text
-    text: '#E5E7EB', // gray-200
-    textSecondary: '#9CA3AF', // gray-400
-    textMuted: '#6B7280', // gray-500
+    // Slate
+    slate50: '#F8FAFC',
+    slate100: '#F1F5F9',
+    slate200: '#E2E8F0',
+    slate300: '#CBD5E1',
+    slate400: '#94A3B8',
+    slate500: '#64748B',
+    slate600: '#475569',
+    slate700: '#334155',
+    slate800: '#1E293B',
+    slate900: '#0F172A',
+    slate950: '#020617',
 
     // Status
     success: '#10B981',
@@ -25,14 +26,84 @@ export const colors = {
     error: '#EF4444',
     info: '#3B82F6',
 
-    // UI Elements
-    border: '#1E293B', // slate-800
-    borderLight: '#334155', // slate-700
-
-    // Neutral
     white: '#FFFFFF',
     black: '#000000',
 };
+
+export const darkColors = {
+    // Primary
+    primary: palette.primary,
+    primaryDark: palette.primaryDark,
+    primaryLight: palette.primaryLight,
+
+    // Secondary
+    secondary: palette.secondary,
+    secondaryDark: palette.secondaryDark,
+
+    // Background
+    background: palette.slate950,
+    backgroundCard: '#0B1120', // slightly lighter than 950
+    backgroundHover: palette.slate800,
+    muted: palette.slate800,
+
+    // Text
+    text: '#E5E7EB', // gray-200
+    textSecondary: '#9CA3AF', // gray-400
+    textMuted: '#6B7280', // gray-500
+
+    // Status
+    success: palette.success,
+    warning: palette.warning,
+    error: palette.error,
+    info: palette.info,
+
+    // UI Elements
+    border: palette.slate800,
+    borderLight: palette.slate700,
+
+    // Neutral
+    white: palette.white,
+    black: palette.black,
+};
+
+export const lightColors = {
+    // Primary
+    primary: palette.primary,
+    primaryDark: palette.primaryDark,
+    primaryLight: palette.primaryLight,
+
+    // Secondary
+    secondary: palette.secondary,
+    secondaryDark: palette.secondaryDark,
+
+    // Background
+    background: palette.slate50,
+    backgroundCard: palette.white,
+    backgroundHover: palette.slate100,
+    muted: palette.slate200,
+
+    // Text
+    text: palette.slate900,
+    textSecondary: palette.slate600,
+    textMuted: palette.slate400,
+
+    // Status
+    success: palette.success,
+    warning: palette.warning,
+    error: palette.error,
+    info: palette.info,
+
+    // UI Elements
+    border: palette.slate300,
+    borderLight: palette.slate200,
+
+    // Neutral
+    white: palette.white,
+    black: palette.black,
+};
+
+// Default to Dark for backward compatibility until refactor is complete
+export const colors = darkColors;
 
 export const spacing = {
     xs: 4,

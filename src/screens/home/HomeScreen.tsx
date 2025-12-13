@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator }
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ScreenContainer } from '../../components';
-import { colors, spacing, typography, borderRadius } from '../../theme';
+import { spacing, typography, borderRadius } from '../../theme';
+import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../services/supabaseClient';
 import { AppStackParamList } from '../../navigation/AppNavigator';
@@ -73,6 +74,13 @@ export const HomeScreen: React.FC = () => {
         </TouchableOpacity>
     );
 
+    const { colors } = useTheme();
+    const styles = React.useMemo(() => getStyles(colors), [colors]); // Dynamic styles
+
+    // ... (rest of the component logic remains mostly the same, just using 'styles' from above)
+
+    // ...
+
     return (
         <ScreenContainer>
             <View style={styles.header}>
@@ -115,7 +123,7 @@ export const HomeScreen: React.FC = () => {
     );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
     header: {
         padding: spacing.lg,
         paddingBottom: spacing.sm,

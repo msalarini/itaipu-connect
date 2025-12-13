@@ -8,7 +8,8 @@ import {
     TextStyle,
     StyleProp,
 } from 'react-native';
-import { colors, spacing, typography, borderRadius } from '../theme';
+import { spacing, typography, borderRadius } from '../theme';
+import { useTheme } from '../context/ThemeContext';
 
 export interface AppButtonProps extends TouchableOpacityProps {
     title: string;
@@ -28,6 +29,9 @@ export const AppButton: React.FC<AppButtonProps> = ({
     textStyle,
     ...props
 }) => {
+    const { colors } = useTheme();
+    const styles = React.useMemo(() => getStyles(colors), [colors]);
+
     const getButtonStyle = () => {
         switch (variant) {
             case 'secondary':
@@ -72,7 +76,7 @@ export const AppButton: React.FC<AppButtonProps> = ({
     );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
     button: {
         paddingVertical: spacing.md,
         paddingHorizontal: spacing.xl,

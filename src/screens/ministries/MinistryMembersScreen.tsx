@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, 
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { AppStackParamList } from '../../navigation/AppNavigator';
 import { ScreenContainer, AppButton } from '../../components';
-import { colors, spacing, typography, borderRadius } from '../../theme';
+import { spacing, typography, borderRadius } from '../../theme';
+import { useTheme } from '../../context/ThemeContext';
 import { supabase } from '../../services/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -25,6 +26,8 @@ export const MinistryMembersScreen: React.FC = () => {
     const navigation = useNavigation<NativeStackNavigationProp<AppStackParamList>>();
     const { ministryId, ministryName } = route.params;
     const { user, profile } = useAuth();
+    const { colors } = useTheme();
+    const styles = React.useMemo(() => getStyles(colors), [colors]);
 
     const isPastor = profile?.global_role === 'PASTOR';
 
@@ -275,7 +278,7 @@ export const MinistryMembersScreen: React.FC = () => {
     );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
     header: {
         padding: spacing.lg,
         paddingBottom: spacing.sm,
@@ -314,13 +317,13 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: borderRadius.full,
-        backgroundColor: colors.primaryLight,
+        backgroundColor: colors.primary + '20', // Light primary
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: spacing.md,
     },
     avatarText: {
-        color: colors.white,
+        color: colors.primary,
         fontWeight: typography.weights.bold,
         fontSize: typography.sizes.md,
     },

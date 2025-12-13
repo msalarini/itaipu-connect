@@ -11,7 +11,8 @@ import {
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ScreenContainer, AppInput, AppButton } from '../../components';
-import { colors, spacing, typography, borderRadius } from '../../theme';
+import { spacing, typography, borderRadius } from '../../theme';
+import { useTheme } from '../../context/ThemeContext';
 import { AppStackParamList } from '../../navigation/AppNavigator';
 import { getUsersNotInMinistry, addMemberToMinistry, UserSearchResult } from '../../services/memberService';
 
@@ -22,6 +23,8 @@ export const AddMemberScreen: React.FC = () => {
     const navigation = useNavigation<NavigationProp>();
     const route = useRoute<AddMemberRouteProp>();
     const { ministryId, ministryName } = route.params;
+    const { colors } = useTheme();
+    const styles = React.useMemo(() => getStyles(colors), [colors]);
 
     const [searchQuery, setSearchQuery] = useState('');
     const [users, setUsers] = useState<UserSearchResult[]>([]);
@@ -144,7 +147,7 @@ export const AddMemberScreen: React.FC = () => {
     );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
     header: {
         padding: spacing.lg,
         paddingBottom: spacing.sm,
@@ -184,7 +187,7 @@ const styles = StyleSheet.create({
         width: 44,
         height: 44,
         borderRadius: borderRadius.full,
-        backgroundColor: colors.primaryLight,
+        backgroundColor: colors.primary + '20', // Light primary
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: spacing.md,

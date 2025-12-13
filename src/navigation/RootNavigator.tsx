@@ -6,7 +6,7 @@ import { LoginScreen } from '../screens/auth/LoginScreen';
 import { InviteRegisterScreen } from '../screens/auth/InviteRegisterScreen';
 import { AppNavigator } from './AppNavigator';
 import { useAuth } from '../context/AuthContext';
-import { colors } from '../theme';
+import { useTheme } from '../context/ThemeContext';
 
 export type RootStackParamList = {
     Login: undefined;
@@ -18,6 +18,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export const RootNavigator: React.FC = () => {
     const { session, loading } = useAuth();
+    const { colors } = useTheme();
 
     if (loading) {
         return (

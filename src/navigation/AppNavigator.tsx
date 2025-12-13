@@ -20,7 +20,7 @@ import { AddMemberScreen } from '../screens/ministries/AddMemberScreen';
 import { EventDetailsScreen } from '../screens/events/EventDetailsScreen';
 import { EditProfileScreen } from '../screens/profile/EditProfileScreen';
 import { MembersScreen } from '../screens/admin/MembersScreen';
-import { colors } from '../theme';
+import { SettingsScreen } from '../screens/settings/SettingsScreen';
 
 // Tipos para as Tabs
 export type MainTabParamList = {
@@ -47,12 +47,19 @@ export type AppStackParamList = {
     EventDetails: { event: any };
     EditProfile: undefined;
     Members: undefined;
+    Settings: undefined;
 };
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const Stack = createNativeStackNavigator<AppStackParamList>();
 
+// ... imports
+import { useTheme } from '../context/ThemeContext';
+
+// ... types
+
 const MainTabs: React.FC = () => {
+    const { colors } = useTheme();
     return (
         <Tab.Navigator
             screenOptions={{
@@ -66,6 +73,7 @@ const MainTabs: React.FC = () => {
                 tabBarInactiveTintColor: colors.textMuted,
             }}
         >
+            {/* Tab Screens */}
             <Tab.Screen
                 name="Home"
                 component={HomeScreen}
@@ -91,6 +99,8 @@ const MainTabs: React.FC = () => {
 };
 
 export const AppNavigator: React.FC = () => {
+    const { colors } = useTheme();
+
     return (
         <Stack.Navigator screenOptions={{ headerShown: false }}>
             <Stack.Screen name="MainTabs" component={MainTabs} />
@@ -241,6 +251,16 @@ export const AppNavigator: React.FC = () => {
                 options={{
                     headerShown: true,
                     title: 'Gestão de Pessoas',
+                    headerStyle: { backgroundColor: colors.backgroundCard },
+                    headerTintColor: colors.text,
+                }}
+            />
+            <Stack.Screen
+                name="Settings"
+                component={SettingsScreen}
+                options={{
+                    headerShown: true,
+                    title: 'Configurações',
                     headerStyle: { backgroundColor: colors.backgroundCard },
                     headerTintColor: colors.text,
                 }}

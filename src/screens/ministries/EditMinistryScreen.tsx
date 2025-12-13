@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ScreenContainer, AppInput, AppButton } from '../../components';
-import { colors, spacing, typography, borderRadius } from '../../theme';
+import { spacing, typography, borderRadius } from '../../theme';
+import { useTheme } from '../../context/ThemeContext';
 import { AppStackParamList } from '../../navigation/AppNavigator';
 import { getMinistryById, updateMinistry, deleteMinistry } from '../../services/ministryService';
 
@@ -14,6 +15,8 @@ export const EditMinistryScreen: React.FC = () => {
     const navigation = useNavigation<NavigationProp>();
     const route = useRoute<EditMinistryRouteProp>();
     const { ministryId } = route.params;
+    const { colors } = useTheme();
+    const styles = React.useMemo(() => getStyles(colors), [colors]);
 
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
@@ -155,7 +158,7 @@ export const EditMinistryScreen: React.FC = () => {
     );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
     loader: {
         flex: 1,
         justifyContent: 'center',
@@ -197,5 +200,6 @@ const styles = StyleSheet.create({
     },
     deleteButton: {
         borderColor: colors.error,
+        borderWidth: 1,
     },
 });

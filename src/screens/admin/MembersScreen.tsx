@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, Alert, TouchableOpacity, TextInput, ActivityIndicator, ActionSheetIOS, Platform } from 'react-native';
 import { ScreenContainer, AppInput } from '../../components';
-import { colors, spacing, typography, borderRadius } from '../../theme';
+import { spacing, typography, borderRadius } from '../../theme';
+import { useTheme } from '../../context/ThemeContext';
 import { Member, memberService } from '../../services/memberService';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigation } from '@react-navigation/native';
@@ -9,6 +10,8 @@ import { useNavigation } from '@react-navigation/native';
 export const MembersScreen: React.FC = () => {
     const { profile: myProfile } = useAuth();
     const navigation = useNavigation();
+    const { colors } = useTheme();
+    const styles = React.useMemo(() => getStyles(colors), [colors]);
 
     const [members, setMembers] = useState<Member[]>([]);
     const [filteredMembers, setFilteredMembers] = useState<Member[]>([]);
@@ -187,7 +190,7 @@ export const MembersScreen: React.FC = () => {
     );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
     header: {
         padding: spacing.lg,
         paddingBottom: spacing.sm,

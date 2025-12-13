@@ -3,7 +3,9 @@ import { View, Text, StyleSheet, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ScreenContainer, AppInput, AppButton } from '../../components';
-import { colors, spacing, typography } from '../../theme';
+
+import { spacing, typography } from '../../theme';
+import { useTheme } from '../../context/ThemeContext';
 import { AppStackParamList } from '../../navigation/AppNavigator';
 import { useAuth } from '../../context/AuthContext';
 import { createMinistry } from '../../services/ministryService';
@@ -13,6 +15,8 @@ type NavigationProp = NativeStackNavigationProp<AppStackParamList, 'CreateMinist
 export const CreateMinistryScreen: React.FC = () => {
     const navigation = useNavigation<NavigationProp>();
     const { user } = useAuth();
+    const { colors } = useTheme();
+    const styles = React.useMemo(() => getStyles(colors), [colors]);
 
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
@@ -88,7 +92,7 @@ export const CreateMinistryScreen: React.FC = () => {
     );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
     container: {
         flex: 1,
         padding: spacing.lg,

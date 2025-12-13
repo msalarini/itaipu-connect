@@ -3,12 +3,13 @@ import { View, Text, StyleSheet, Alert, ScrollView, ActivityIndicator, Touchable
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ScreenContainer, AppInput, AppButton } from '../../components';
-import { colors, spacing, typography, borderRadius } from '../../theme';
+import { spacing, typography, borderRadius } from '../../theme';
+import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../services/supabaseClient';
 import { AppStackParamList } from '../../navigation/AppNavigator';
 
-type ProfileNavigationProp = NativeStackNavigationProp<AppStackParamList, 'MainTabs'>;
+type ProfileNavigationProp = NativeStackNavigationProp<AppStackParamList>;
 
 export const ProfileScreen: React.FC = () => {
     const navigation = useNavigation<ProfileNavigationProp>();
@@ -29,6 +30,11 @@ export const ProfileScreen: React.FC = () => {
             setBio(profile.bio || '');
         }
     }, [profile]);
+
+    const { colors } = useTheme();
+    const styles = React.useMemo(() => getStyles(colors), [colors]);
+
+    // ... hooks ...
 
     const handleSave = async () => {
         if (!user) return;
@@ -126,15 +132,15 @@ export const ProfileScreen: React.FC = () => {
 
                 <Text style={styles.sectionTitle}>Configurações</Text>
 
-                {/* Placeholder for Notification Settings */}
-                <TouchableOpacity style={styles.settingItem} onPress={() => Alert.alert('Em breve', 'Configurações de notificação virão na próxima atualização.')}>
-                    <Text style={styles.settingLabel}>Notificações Push</Text>
-                    <Text style={styles.settingValue}>Ativado</Text>
+                <TouchableOpacity style={styles.settingItem} onPress={() => navigation.navigate('Settings')}>
+                    <Text style={styles.settingLabel}>Configurações do App</Text>
+                    <Text style={styles.settingValue}>→</Text>
                 </TouchableOpacity>
+
+                <View style={styles.divider} />
 
                 {isPastor && (
                     <>
-                        <View style={styles.divider} />
                         <Text style={styles.sectionTitle}>Administração</Text>
                         <TouchableOpacity
                             style={styles.settingItem}
@@ -162,7 +168,7 @@ export const ProfileScreen: React.FC = () => {
     );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
     header: {
         alignItems: 'center',
         paddingVertical: spacing.xl,

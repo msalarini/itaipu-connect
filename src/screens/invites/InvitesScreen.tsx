@@ -13,7 +13,9 @@ import * as Clipboard from 'expo-clipboard';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ScreenContainer } from '../../components';
-import { colors, spacing, typography, borderRadius } from '../../theme';
+
+import { spacing, typography, borderRadius } from '../../theme';
+import { useTheme } from '../../context/ThemeContext';
 import { AppStackParamList } from '../../navigation/AppNavigator';
 import {
     Invite,
@@ -29,6 +31,9 @@ type NavigationProp = NativeStackNavigationProp<AppStackParamList, 'Invites'>;
 
 export const InvitesScreen: React.FC = () => {
     const navigation = useNavigation<NavigationProp>();
+    const { colors } = useTheme();
+    const styles = React.useMemo(() => getStyles(colors), [colors]);
+
     const [invites, setInvites] = useState<Invite[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -98,7 +103,7 @@ export const InvitesScreen: React.FC = () => {
     const getStatusColor = (status: 'active' | 'used' | 'expired') => {
         switch (status) {
             case 'active':
-                return colors.success;
+                return colors.success || '#10B981'; // Fallback if success not in theme
             case 'used':
                 return colors.primary;
             case 'expired':
@@ -214,7 +219,7 @@ export const InvitesScreen: React.FC = () => {
     );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
     loader: {
         flex: 1,
         justifyContent: 'center',

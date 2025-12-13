@@ -85,14 +85,14 @@ O acesso ao aplicativo é **exclusivo por convite**. Não há registro público.
 ## 📝 Roadmap
 
 - [x] Fase 0: Configuração inicial
-- [ ] Fase 1: Arquitetura e tema
-- [ ] Fase 2: Backend e modelo de dados
-- [ ] Fase 3: Autenticação
-- [ ] Fase 4: Ministérios e mensagens
-- [ ] Fase 5: Avisos e eventos
-- [ ] Fase 6: Gestão de pessoas
-- [ ] Fase 7: Push notifications
-- [ ] Fase 8: Publicação
+- [x] Fase 1: Arquitetura e tema
+- [x] Fase 2: Backend e modelo de dados
+- [x] Fase 3: Autenticação
+- [x] Fase 4: Ministérios e mensagens
+- [x] Fase 5: Avisos e eventos
+- [x] Fase 6: Gestão de pessoas
+- [x] Fase 7: Push notifications
+- [x] Fase 8: Publicação
 
 ## 🚀 Build e Publicação
 

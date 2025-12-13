@@ -4,6 +4,7 @@ import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AppStackParamList } from '../../navigation/AppNavigator';
 import { colors, spacing, typography, borderRadius } from '../../theme';
+import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../services/supabaseClient';
 import { format } from 'date-fns';
@@ -44,6 +45,8 @@ export const MinistryChannelScreen: React.FC = () => {
     const navigation = useNavigation<MinistryChannelNavigationProp>();
     const { ministryId } = route.params;
     const { user } = useAuth();
+    const { colors } = useTheme();
+    const styles = React.useMemo(() => getStyles(colors), [colors]);
 
     const [messages, setMessages] = useState<Message[]>([]);
     const [newMessage, setNewMessage] = useState('');
@@ -52,6 +55,8 @@ export const MinistryChannelScreen: React.FC = () => {
     const [selectedFile, setSelectedFile] = useState<AttachmentFile | null>(null);
     const [showAttachmentPicker, setShowAttachmentPicker] = useState(false);
     const flatListRef = useRef<FlatList>(null);
+
+    // ... (useEffect and fetch functions remain the same)
 
     useEffect(() => {
         fetchMessages();
@@ -135,6 +140,8 @@ export const MinistryChannelScreen: React.FC = () => {
             }
         }
     };
+
+    // ... (handleSelectFile, handleSendMessage, handleToggleReaction remain the same)
 
     const handleSelectFile = async (file: AttachmentFile) => {
         try {
@@ -234,6 +241,8 @@ export const MinistryChannelScreen: React.FC = () => {
             console.error('Error toggling reaction:', error);
         }
     };
+
+    // ... (renderMessageItem remains largely the same but uses dynamic styles internally)
 
     const renderMessageItem = ({ item }: { item: Message }) => {
         const isMyMessage = item.author_id === user?.id;
@@ -368,7 +377,7 @@ export const MinistryChannelScreen: React.FC = () => {
                     disabled={(!newMessage.trim() && !selectedFile) || sending}
                 >
                     {sending ? (
-                        <ActivityIndicator size="small" color={colors.white} />
+                        <ActivityIndicator size="small" color={colors.text} />
                     ) : (
                         <Text style={styles.sendButtonText}>Enviar</Text>
                     )}
@@ -405,7 +414,7 @@ export const MinistryChannelScreen: React.FC = () => {
     );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: colors.background,
@@ -502,6 +511,7 @@ const styles = StyleSheet.create({
     },
     attachIcon: {
         fontSize: 24,
+        color: colors.text,
     },
     input: {
         flex: 1,
@@ -522,7 +532,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     sendButtonDisabled: {
-        backgroundColor: colors.muted,
+        backgroundColor: colors.muted || '#888',
     },
     sendButtonText: {
         color: colors.white,
@@ -579,5 +589,6 @@ const styles = StyleSheet.create({
     },
     reactionOptionText: {
         fontSize: 24,
+        color: colors.text,
     },
 });

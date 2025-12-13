@@ -11,7 +11,9 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ScreenContainer, AppInput, AppButton } from '../../components';
-import { colors, spacing, typography, borderRadius } from '../../theme';
+
+import { spacing, typography, borderRadius } from '../../theme';
+import { useTheme } from '../../context/ThemeContext';
 import { AppStackParamList } from '../../navigation/AppNavigator';
 import { useAuth } from '../../context/AuthContext';
 import { createInvite } from '../../services/inviteService';
@@ -38,6 +40,8 @@ const ROLE_OPTIONS: { label: string; value: 'MEMBER' | 'LEADER' }[] = [
 export const CreateInviteScreen: React.FC = () => {
     const navigation = useNavigation<NavigationProp>();
     const { user } = useAuth();
+    const { colors } = useTheme();
+    const styles = React.useMemo(() => getStyles(colors), [colors]);
 
     const [email, setEmail] = useState('');
     const [selectedRole, setSelectedRole] = useState<'MEMBER' | 'LEADER'>('MEMBER');
@@ -238,7 +242,7 @@ export const CreateInviteScreen: React.FC = () => {
     );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
     container: {
         flex: 1,
         padding: spacing.lg,

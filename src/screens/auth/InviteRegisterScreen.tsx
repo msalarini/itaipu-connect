@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ScreenContainer, AppButton, AppInput } from '../../components';
-import { colors, spacing, typography } from '../../theme';
+import { spacing, typography } from '../../theme';
+import { useTheme } from '../../context/ThemeContext';
 import { supabase } from '../../services/supabaseClient';
 import { RootStackParamList } from '../../navigation/RootNavigator';
 
@@ -14,6 +15,9 @@ type InviteRegisterScreenNavigationProp = NativeStackNavigationProp<
 
 export const InviteRegisterScreen: React.FC = () => {
     const navigation = useNavigation<InviteRegisterScreenNavigationProp>();
+    const { colors } = useTheme();
+    const styles = React.useMemo(() => getStyles(colors), [colors]);
+
     const [email, setEmail] = useState('');
     const [code, setCode] = useState('');
     const [password, setPassword] = useState('');
@@ -189,7 +193,7 @@ export const InviteRegisterScreen: React.FC = () => {
     );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
     container: {
         flex: 1,
         padding: spacing['2xl'],

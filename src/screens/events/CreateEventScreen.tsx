@@ -5,7 +5,8 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker'; // Install: expo install @react-native-picker/picker
 import { format } from 'date-fns';
 import { ScreenContainer, AppInput, AppButton } from '../../components';
-import { colors, spacing, typography, borderRadius } from '../../theme';
+import { spacing, typography, borderRadius } from '../../theme';
+import { useTheme } from '../../context/ThemeContext';
 import { supabase } from '../../services/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { listMinistries, Ministry } from '../../services/ministryService';
@@ -13,6 +14,8 @@ import { listMinistries, Ministry } from '../../services/ministryService';
 export const CreateEventScreen: React.FC = () => {
     const navigation = useNavigation();
     const { profile } = useAuth();
+    const { colors } = useTheme();
+    const styles = React.useMemo(() => getStyles(colors), [colors]);
 
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
@@ -236,7 +239,7 @@ export const CreateEventScreen: React.FC = () => {
     );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
     container: {
         padding: spacing.lg,
     },

@@ -7,7 +7,7 @@ import {
     SafeAreaView,
     StatusBar,
 } from 'react-native';
-import { colors } from '../theme';
+import { useTheme } from '../context/ThemeContext';
 
 interface ScreenContainerProps extends ViewProps {
     children: React.ReactNode;
@@ -22,13 +22,17 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
     style,
     ...props
 }) => {
+    const { colors, theme } = useTheme();
     const Container = safeArea ? SafeAreaView : View;
     const Content = scrollable ? ScrollView : View;
 
     return (
         <>
-            <StatusBar barStyle="light-content" backgroundColor={colors.background} />
-            <Container style={[styles.container, style]} {...props}>
+            <StatusBar
+                barStyle={theme === 'dark' ? 'light-content' : 'dark-content'}
+                backgroundColor={colors.background}
+            />
+            <Container style={[styles.container, { backgroundColor: colors.background }, style]} {...props}>
                 <Content
                     style={styles.content}
                     contentContainerStyle={scrollable ? styles.scrollContent : undefined}
@@ -44,7 +48,7 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+        // backgroundColor handled by theme
     },
     content: {
         flex: 1,

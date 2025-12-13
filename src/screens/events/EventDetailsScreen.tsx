@@ -4,7 +4,8 @@ import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ScreenContainer, AppButton } from '../../components';
-import { colors, spacing, typography, borderRadius } from '../../theme';
+import { spacing, typography, borderRadius } from '../../theme';
+import { useTheme } from '../../context/ThemeContext';
 import { AppStackParamList } from '../../navigation/AppNavigator';
 import { useAuth } from '../../context/AuthContext';
 import { eventService, EventRSVP } from '../../services/eventService';
@@ -16,6 +17,8 @@ export const EventDetailsScreen: React.FC = () => {
     const navigation = useNavigation();
     const { event } = route.params;
     const { user } = useAuth();
+    const { colors } = useTheme();
+    const styles = React.useMemo(() => getStyles(colors), [colors]);
 
     const [attendees, setAttendees] = useState<EventRSVP[]>([]);
     const [myRSVP, setMyRSVP] = useState<'CONFIRMED' | 'DECLINED' | null>(null);
@@ -48,11 +51,6 @@ export const EventDetailsScreen: React.FC = () => {
 
     const handleRSVP = async (status: 'CONFIRMED' | 'DECLINED') => {
         if (!user) return;
-
-        // If clicking the same status, maybe remove RSVP? 
-        // For now, let's allow switching or re-confirming.
-        // If already confirmed and clicks declined, switch.
-        // If already confirmed and clicks confirmed, do nothing? or maybe show alert?
 
         if (myRSVP === status) {
             return;
@@ -148,11 +146,9 @@ export const EventDetailsScreen: React.FC = () => {
                         />
                         <AppButton
                             title={isDeclined ? "❌ Não vou" : "Não vou"}
-                            variant={isDeclined ? "secondary" : "outline"} // Secondary as a "muted" state or similar? Or just outline.
-                            // Let's use outline for unselected, secondary (filled gray) for declined? 
-                            // Actually, let's keep it simple.
+                            variant={isDeclined ? "secondary" : "outline"}
                             onPress={() => handleRSVP('DECLINED')}
-                            loading={processing && isDeclined} // Only show loading on the specific button?
+                            loading={processing && isDeclined}
                             disabled={processing}
                             style={[styles.rsvpButton, isDeclined && { backgroundColor: colors.backgroundHover }]}
                             textStyle={isDeclined ? { color: colors.textMuted } : undefined}
@@ -196,7 +192,7 @@ export const EventDetailsScreen: React.FC = () => {
     );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
     content: {
         padding: spacing.lg,
         paddingBottom: spacing['4xl'],
@@ -240,9 +236,9 @@ const styles = StyleSheet.create({
     },
     ministryTag: {
         fontSize: typography.sizes.sm,
-        color: colors.primaryLight,
+        color: colors.primary,
         fontWeight: typography.weights.medium,
-        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        backgroundColor: colors.primary + '20', // Light primary
         alignSelf: 'flex-start',
         paddingHorizontal: spacing.sm,
         paddingVertical: 2,
@@ -264,6 +260,7 @@ const styles = StyleSheet.create({
         fontSize: 20,
         marginRight: spacing.md,
         marginTop: 2,
+        color: colors.text,
     },
     infoLabel: {
         fontSize: typography.sizes.xs,
@@ -326,7 +323,7 @@ const styles = StyleSheet.create({
         width: 48,
         height: 48,
         borderRadius: borderRadius.full,
-        backgroundColor: colors.backgroundHover,
+        backgroundColor: colors.backgroundCard,
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: spacing.xs,
