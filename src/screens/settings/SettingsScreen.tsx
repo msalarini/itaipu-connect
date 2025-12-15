@@ -5,10 +5,11 @@ import { useAuth } from '../../context/AuthContext';
 import { ScreenContainer } from '../../components';
 import { spacing, typography, borderRadius } from '../../theme';
 import Constants from 'expo-constants';
+import { supabase } from '../../services/supabaseClient';
 
 export const SettingsScreen: React.FC = () => {
     const { theme, toggleTheme, colors } = useTheme();
-    const { signOut } = useAuth();
+    const { signOut, user, profile, refreshProfile } = useAuth();
     const styles = React.useMemo(() => getStyles(colors), [colors]);
 
     const handleSignOut = () => {
@@ -61,8 +62,31 @@ export const SettingsScreen: React.FC = () => {
                             </Text>
                         </View>
                         <Switch
-                            value={true}
-                            onValueChange={() => Alert.alert('Em breve', 'Configuração de notificações virá na próxima atualização.')}
+                            value={profile?.preferences?.push_notifications ?? true}
+                            onValueChange={async (value) => {
+                                try {
+                                    // Optimistic update (handled by refreshProfile usually, but for switch visual we might want local state if context is slow)
+                                    // But context-based is safer for truth.
+                                    // Let's assume we trigger update.
+
+                                    const updatedPreferences = {
+                                        ...profile?.preferences,
+                                        push_notifications: value
+                                    };
+
+                                    const { error } = await supabase
+                                        .from('profiles')
+                                        .update({ preferences: updatedPreferences })
+                                        .eq('id', user?.id);
+
+                                    if (error) throw error;
+
+                                    if (refreshProfile) await refreshProfile();
+                                } catch (error) {
+                                    Alert.alert('Erro', 'Não foi possível atualizar as preferências.');
+                                    console.error(error);
+                                }
+                            }}
                             trackColor={{ false: colors.border, true: colors.primary }}
                             thumbColor={colors.white}
                         />

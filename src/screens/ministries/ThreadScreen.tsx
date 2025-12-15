@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator, Alert } from 'react-native';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { AppStackParamList } from '../../navigation/AppNavigator';
-import { colors, spacing, typography, borderRadius } from '../../theme';
+import { spacing, typography, borderRadius } from '../../theme';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../services/supabaseClient';
@@ -35,6 +35,7 @@ export const ThreadScreen: React.FC = () => {
     const route = useRoute<ThreadRouteProp>();
     const { rootMessageId, ministryId } = route.params;
     const { user } = useAuth();
+    const { colors } = useTheme();
 
     const [rootMessage, setRootMessage] = useState<Message | null>(null);
     const [replies, setReplies] = useState<Message[]>([]);
@@ -43,9 +44,12 @@ export const ThreadScreen: React.FC = () => {
     const [sending, setSending] = useState(false);
     const [selectedFile, setSelectedFile] = useState<AttachmentFile | null>(null);
     const [showAttachmentPicker, setShowAttachmentPicker] = useState(false);
+    const styles = React.useMemo(() => getStyles(colors), [colors]);
+
     const flatListRef = useRef<FlatList>(null);
 
     useEffect(() => {
+        // ... (existing logic)
         fetchThread();
 
         const channel = supabase
@@ -69,6 +73,7 @@ export const ThreadScreen: React.FC = () => {
         };
     }, [rootMessageId]);
 
+    // ... (keep all existing functions: fetchThread, fetchSingleReply, handleSelectFile, handleSendMessage, renderMessageItem)
     const fetchThread = async () => {
         try {
             const { data: rootData, error: rootError } = await supabase
@@ -300,7 +305,7 @@ export const ThreadScreen: React.FC = () => {
     );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: colors.background,
@@ -401,6 +406,7 @@ const styles = StyleSheet.create({
     },
     attachIcon: {
         fontSize: 24,
+        color: colors.text
     },
     input: {
         flex: 1,

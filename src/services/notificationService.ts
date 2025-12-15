@@ -220,10 +220,15 @@ export async function sendPushNotification(expoPushToken: string, title: string,
  */
 export async function sendBroadcastNotification(title: string, body: string) {
     try {
-        // 1. Fetch all tokens
+        // 1. Fetch all tokens with related profile preferences
         const { data: tokens, error } = await supabase
             .from('push_tokens')
-            .select('expo_push_token');
+            .select(`
+                expo_push_token,
+                profiles (
+                    preferences
+                )
+            `);
 
         if (error) {
             console.error('Error fetching push tokens:', error);
@@ -235,8 +240,18 @@ export async function sendBroadcastNotification(title: string, body: string) {
             return;
         }
 
-        // 2. Filter valid tokens and prevent duplicates
-        const uniqueTokens = [...new Set(tokens.map(t => t.expo_push_token))];
+        // 2. Filter valid tokens and respect user preferences
+        const uniqueTokens = [...new Set(
+            tokens
+                .filter((t: any) => {
+                    // Check preferences (default to true if missing)
+                    const prefs = t.profiles?.preferences;
+                    if (!prefs) return true;
+                    return prefs.push_notifications !== false;
+                })
+                .map((t: any) => t.expo_push_token)
+        )];
+
         const validTokens = uniqueTokens.filter(t => t && t.length > 0);
 
         if (validTokens.length === 0) {

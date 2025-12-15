@@ -20,6 +20,9 @@ interface UserProfile {
     role?: string; // Legacy/Local role if any
     leader_ministry_id?: string;
     ministry_coordinator_id?: string;
+    preferences?: {
+        push_notifications?: boolean;
+    };
 }
 
 interface AuthContextData {

@@ -7,6 +7,7 @@ create table public.profiles (
   email text,
   name text,
   global_role text check (global_role in ('MEMBER', 'LEADER', 'PASTOR')) default 'MEMBER',
+  preferences jsonb default '{"push_notifications": true}'::jsonb,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
