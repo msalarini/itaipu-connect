@@ -1,13 +1,6 @@
 import { supabase } from './supabaseClient';
 
-export interface Ministry {
-    id: string;
-    name: string;
-    description: string | null;
-    created_by: string;
-    created_at: string;
-    updated_at: string;
-}
+import { Ministry } from '../types';
 
 export interface CreateMinistryData {
     name: string;
@@ -112,4 +105,32 @@ export async function listMinistries(): Promise<Ministry[]> {
     }
 
     return data || [];
+}
+
+/**
+ * List ministries the user is a member of
+ */
+export async function listUserMinistries(userId: string): Promise<Ministry[]> {
+    const { data, error } = await supabase
+        .from('ministry_members')
+        .select(`
+            ministry:ministries (
+                id,
+                name,
+                description,
+                created_by,
+                created_at
+            )
+        `)
+        .eq('user_id', userId);
+
+    if (error) {
+        console.error('Error fetching user ministries:', error);
+        throw new Error(error.message);
+    }
+
+    if (!data) return [];
+
+    // Flatten the response
+    return data.map((item: any) => item.ministry).filter(Boolean);
 }

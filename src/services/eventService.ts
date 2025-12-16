@@ -1,18 +1,29 @@
 import { supabase } from './supabaseClient';
 
-export interface EventRSVP {
-    id: string;
-    event_id: string;
-    user_id: string;
-    status: 'CONFIRMED' | 'DECLINED';
-    created_at: string;
-    profile?: {
-        name: string;
-        email: string;
-    };
-}
+import { Event, EventRSVP } from '../types';
 
 export const eventService = {
+    /**
+     * List future events
+     */
+    async listEvents() {
+        const { data, error } = await supabase
+            .from('events')
+            .select(`
+                *,
+                ministry:ministries(name)
+            `)
+            .order('event_date', { ascending: true })
+            .gte('event_date', new Date().toISOString());
+
+        if (error) {
+            console.error('Error fetching events:', error);
+            throw error;
+        }
+
+        return data as Event[];
+    },
+
     /**
      * Get list of confirmed attendees for an event
      */

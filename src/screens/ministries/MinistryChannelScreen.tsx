@@ -15,30 +15,7 @@ import { uploadAttachment, validateFile, AttachmentFile } from '../../services/s
 type MinistryChannelRouteProp = RouteProp<AppStackParamList, 'MinistryChannel'>;
 type MinistryChannelNavigationProp = NativeStackNavigationProp<AppStackParamList, 'MinistryChannel'>;
 
-interface MessageAttachmentData {
-    id: string;
-    file_url: string;
-    file_type: string;
-    file_name: string;
-}
-
-interface MessageReaction {
-    id?: string;
-    emoji: string;
-    user_id: string;
-}
-
-interface Message {
-    id: string;
-    content: string;
-    created_at: string;
-    author_id: string;
-    author: {
-        name: string;
-    };
-    attachments?: MessageAttachmentData[];
-    reactions?: MessageReaction[];
-}
+import { Message, MessageAttachment as MessageAttachmentType } from '../../types';
 
 export const MinistryChannelScreen: React.FC = () => {
     const route = useRoute<MinistryChannelRouteProp>();
@@ -249,12 +226,12 @@ export const MinistryChannelScreen: React.FC = () => {
         const attachment = item.attachments && item.attachments.length > 0 ? item.attachments[0] : null;
 
         // Group reactions
-        const reactionCounts = item.reactions?.reduce((acc, curr) => {
+        const reactionCounts = (item.reactions || []).reduce((acc: Record<string, number>, curr: any) => {
             acc[curr.emoji] = (acc[curr.emoji] || 0) + 1;
             return acc;
         }, {} as Record<string, number>);
 
-        const userReactions = item.reactions?.filter(r => r.user_id === user?.id).map(r => r.emoji) || [];
+        const userReactions = (item.reactions || []).filter((r: any) => r.user_id === user?.id).map((r: any) => r.emoji) || [];
 
         return (
             <View style={[

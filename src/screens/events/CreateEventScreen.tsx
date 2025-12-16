@@ -9,7 +9,8 @@ import { spacing, typography, borderRadius } from '../../theme';
 import { useTheme } from '../../context/ThemeContext';
 import { supabase } from '../../services/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
-import { listMinistries, Ministry } from '../../services/ministryService';
+import { listMinistries } from '../../services/ministryService';
+import { Ministry } from '../../types';
 
 export const CreateEventScreen: React.FC = () => {
     const navigation = useNavigation();

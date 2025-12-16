@@ -7,23 +7,7 @@ import {
     removeTokenFromDatabase,
 } from '../services/notificationService';
 
-type GlobalRole = 'MEMBER' | 'LEADER' | 'PASTOR';
-
-interface UserProfile {
-    id: string;
-    email: string;
-    name: string;
-    phone?: string;
-    bio?: string;
-    avatar_url?: string;
-    global_role: GlobalRole;
-    role?: string; // Legacy/Local role if any
-    leader_ministry_id?: string;
-    ministry_coordinator_id?: string;
-    preferences?: {
-        push_notifications?: boolean;
-    };
-}
+import { UserProfile } from '../types';
 
 interface AuthContextData {
     session: Session | null;

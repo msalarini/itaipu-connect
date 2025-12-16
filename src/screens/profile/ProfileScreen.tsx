@@ -8,6 +8,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../services/supabaseClient';
 import { AppStackParamList } from '../../navigation/AppNavigator';
+import { useProfile } from '../../hooks/queries/useProfile';
 
 type ProfileNavigationProp = NativeStackNavigationProp<AppStackParamList>;
 
@@ -15,59 +16,13 @@ export const ProfileScreen: React.FC = () => {
     const navigation = useNavigation<ProfileNavigationProp>();
     const { user, profile, refreshProfile, signOut } = useAuth();
 
-    const isPastor = profile?.global_role === 'PASTOR';
+    const { data: userProfile, isLoading } = useProfile(user?.id);
+    const displayProfile = userProfile || profile;
 
-    const [name, setName] = useState('');
-    const [phone, setPhone] = useState('');
-    const [bio, setBio] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [saving, setSaving] = useState(false);
-
-    useEffect(() => {
-        if (profile) {
-            setName(profile.name || '');
-            setPhone(profile.phone || '');
-            setBio(profile.bio || '');
-        }
-    }, [profile]);
+    const isPastor = displayProfile?.global_role === 'PASTOR';
 
     const { colors } = useTheme();
     const styles = React.useMemo(() => getStyles(colors), [colors]);
-
-    // ... hooks ...
-
-    const handleSave = async () => {
-        if (!user) return;
-        if (!name.trim()) {
-            Alert.alert('Erro', 'O nome é obrigatório.');
-            return;
-        }
-
-        setSaving(true);
-        try {
-            const { error } = await supabase
-                .from('profiles')
-                .update({
-                    name,
-                    phone,
-                    bio,
-                    updated_at: new Date().toISOString(),
-                })
-                .eq('id', user.id);
-
-            if (error) {
-                Alert.alert('Erro ao atualizar', error.message);
-            } else {
-                await refreshProfile();
-                Alert.alert('Sucesso', 'Perfil atualizado com sucesso!');
-            }
-        } catch (error) {
-            console.error(error);
-            Alert.alert('Erro', 'Ocorreu um erro inesperado.');
-        } finally {
-            setSaving(false);
-        }
-    };
 
     const handleSignOut = async () => {
         Alert.alert(
@@ -89,22 +44,22 @@ export const ProfileScreen: React.FC = () => {
     return (
         <ScreenContainer scrollable>
             <View style={styles.header}>
-                <View style={[styles.avatarPlaceholder, profile?.avatar_url && styles.avatarImage]}>
-                    {profile?.avatar_url ? (
+                <View style={[styles.avatarPlaceholder, displayProfile?.avatar_url && styles.avatarImage]}>
+                    {displayProfile?.avatar_url ? (
                         <Image
-                            source={{ uri: profile.avatar_url }}
+                            source={{ uri: displayProfile.avatar_url }}
                             style={styles.avatar}
                         />
                     ) : (
                         <Text style={styles.avatarText}>
-                            {profile?.name?.substring(0, 2).toUpperCase() || 'US'}
+                            {displayProfile?.name?.substring(0, 2).toUpperCase() || 'US'}
                         </Text>
                     )}
                 </View>
-                <Text style={styles.name}>{profile?.name}</Text>
-                <Text style={styles.email}>{profile?.email}</Text>
+                <Text style={styles.name}>{displayProfile?.name}</Text>
+                <Text style={styles.email}>{displayProfile?.email}</Text>
                 <View style={styles.roleBadge}>
-                    <Text style={styles.roleText}>{profile?.global_role || 'MEMBER'}</Text>
+                    <Text style={styles.roleText}>{displayProfile?.global_role || 'MEMBER'}</Text>
                 </View>
             </View>
 
@@ -112,12 +67,12 @@ export const ProfileScreen: React.FC = () => {
                 <View style={styles.infoSection}>
                     <View style={styles.infoRow}>
                         <Text style={styles.infoLabel}>Telefone</Text>
-                        <Text style={styles.infoValue}>{profile?.phone || 'Não informado'}</Text>
+                        <Text style={styles.infoValue}>{displayProfile?.phone || 'Não informado'}</Text>
                     </View>
                     <View style={styles.dividerLight} />
                     <View style={styles.infoRow}>
                         <Text style={styles.infoLabel}>Bio</Text>
-                        <Text style={styles.infoValue}>{profile?.bio || 'Sem biografia'}</Text>
+                        <Text style={styles.infoValue}>{displayProfile?.bio || 'Sem biografia'}</Text>
                     </View>
                 </View>
 

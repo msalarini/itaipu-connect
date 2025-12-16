@@ -8,7 +8,9 @@ import { spacing, typography, borderRadius } from '../../theme';
 import { useTheme } from '../../context/ThemeContext';
 import { AppStackParamList } from '../../navigation/AppNavigator';
 import { useAuth } from '../../context/AuthContext';
-import { eventService, EventRSVP } from '../../services/eventService';
+import { eventService } from '../../services/eventService';
+import { EventRSVP } from '../../types';
+import { useEventAttendees, useUserRSVP, useRSVPMutation } from '../../hooks/queries/useEvents';
 
 type EventDetailsRouteProp = RouteProp<AppStackParamList, 'EventDetails'>;
 
@@ -20,62 +22,30 @@ export const EventDetailsScreen: React.FC = () => {
     const { colors } = useTheme();
     const styles = React.useMemo(() => getStyles(colors), [colors]);
 
-    const [attendees, setAttendees] = useState<EventRSVP[]>([]);
-    const [myRSVP, setMyRSVP] = useState<'CONFIRMED' | 'DECLINED' | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [processing, setProcessing] = useState(false);
+    const { data: attendees = [], isLoading: loadingAttendees } = useEventAttendees(event.id);
+    const { data: rsvpData, isLoading: loadingRSVP } = useUserRSVP(event.id, user?.id);
+    const rsvpMutation = useRSVPMutation();
 
-    useEffect(() => {
-        loadData();
-    }, []);
+    const myRSVP = rsvpData?.status;
+    const isProcessing = rsvpMutation.isPending;
+    const isLoading = loadingAttendees || loadingRSVP;
 
-    const loadData = async () => {
-        if (!user) return;
-        try {
-            const [attendeesList, rsvpStatus] = await Promise.all([
-                eventService.getEventAttendees(event.id),
-                eventService.getUserRSVP(event.id, user.id)
-            ]);
+    const handleRSVP = (status: 'CONFIRMED' | 'DECLINED') => {
+        if (!user || myRSVP === status) return;
 
-            setAttendees(attendeesList);
-            if (rsvpStatus) {
-                setMyRSVP(rsvpStatus.status);
+        rsvpMutation.mutate(
+            { eventId: event.id, userId: user.id, status },
+            {
+                onSuccess: () => {
+                    if (status === 'CONFIRMED') {
+                        Alert.alert('Presença Confirmada!', 'Te esperamos lá! 🎉');
+                    }
+                },
+                onError: (error: any) => {
+                    Alert.alert('Erro', 'Falha ao atualizar presença: ' + error.message);
+                }
             }
-        } catch (error) {
-            console.error(error);
-            Alert.alert('Erro', 'Não foi possível carregar os detalhes.');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleRSVP = async (status: 'CONFIRMED' | 'DECLINED') => {
-        if (!user) return;
-
-        if (myRSVP === status) {
-            return;
-        }
-
-        setProcessing(true);
-        try {
-            await eventService.setRSVP(event.id, user.id, status);
-            setMyRSVP(status);
-
-            // Refresh attendees list if confirming
-            if (status === 'CONFIRMED') {
-                const refreshedAttendees = await eventService.getEventAttendees(event.id);
-                setAttendees(refreshedAttendees);
-                Alert.alert('Presença Confirmada!', 'Te esperamos lá! 🎉');
-            } else {
-                // Remove from local list if declining
-                setAttendees(prev => prev.filter(a => a.user_id !== user.id));
-            }
-
-        } catch (error: any) {
-            Alert.alert('Erro', 'Falha ao atualizar presença: ' + error.message);
-        } finally {
-            setProcessing(false);
-        }
+        );
     };
 
     const isConfirmed = myRSVP === 'CONFIRMED';
@@ -140,16 +110,16 @@ export const EventDetailsScreen: React.FC = () => {
                             title={isConfirmed ? "✅ Confirmado" : "Eu vou!"}
                             variant={isConfirmed ? "primary" : "outline"}
                             onPress={() => handleRSVP('CONFIRMED')}
-                            loading={processing && !isDeclined}
-                            disabled={processing}
+                            loading={isProcessing && !isDeclined}
+                            disabled={isProcessing}
                             style={styles.rsvpButton}
                         />
                         <AppButton
                             title={isDeclined ? "❌ Não vou" : "Não vou"}
                             variant={isDeclined ? "secondary" : "outline"}
                             onPress={() => handleRSVP('DECLINED')}
-                            loading={processing && isDeclined}
-                            disabled={processing}
+                            loading={isProcessing && isDeclined}
+                            disabled={isProcessing}
                             style={[styles.rsvpButton, isDeclined && { backgroundColor: colors.backgroundHover }]}
                             textStyle={isDeclined ? { color: colors.textMuted } : undefined}
                         />
@@ -165,7 +135,7 @@ export const EventDetailsScreen: React.FC = () => {
                         </Text>
                     </View>
 
-                    {loading ? (
+                    {isLoading ? (
                         <ActivityIndicator color={colors.primary} />
                     ) : attendees.length === 0 ? (
                         <Text style={styles.emptyText}>Seja o primeiro a confirmar!</Text>

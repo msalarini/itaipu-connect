@@ -10,18 +10,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AppStackParamList } from '../../navigation/AppNavigator';
-
-interface Event {
-    id: string;
-    title: string;
-    description: string;
-    location: string;
-    event_date: string;
-    ministry_id: string | null;
-    ministry?: {
-        name: string;
-    };
-}
+import { useEvents } from '../../hooks/queries/useEvents';
+import { Event } from '../../types';
 
 export const EventsScreen: React.FC = () => {
     const { profile } = useAuth();
@@ -29,38 +19,11 @@ export const EventsScreen: React.FC = () => {
     const { colors } = useTheme();
     const styles = React.useMemo(() => getStyles(colors), [colors]);
 
-    const [events, setEvents] = useState<Event[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [eventsState, setEventsState] = useState<Event[]>([]); // Keep local state if needed for strict type matching, or rely on hook
+    const { data: events = [], isLoading: loading } = useEvents();
 
     // Check permissions: PASTOR can create global events, LEADER can create ministry events
     const canCreate = profile?.global_role === 'PASTOR' || profile?.global_role === 'LEADER';
-
-    useEffect(() => {
-        fetchEvents();
-    }, []);
-
-    const fetchEvents = async () => {
-        try {
-            const { data, error } = await supabase
-                .from('events')
-                .select(`
-          *,
-          ministry:ministries(name)
-        `)
-                .order('event_date', { ascending: true })
-                .gte('event_date', new Date().toISOString()); // Only future events
-
-            if (error) {
-                console.error('Error fetching events:', error);
-            } else {
-                setEvents(data as any);
-            }
-        } catch (error) {
-            console.error('Unexpected error:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const renderEventItem = ({ item }: { item: Event }) => (
         <TouchableOpacity

@@ -9,49 +9,13 @@ import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../services/supabaseClient';
 import { AppStackParamList } from '../../navigation/AppNavigator';
 
-interface Ministry {
-    id: string;
-    name: string;
-    description: string;
-}
+import { Ministry } from '../../types';
+import { useMyMinistries } from '../../hooks/queries/useMinistries';
 
 export const HomeScreen: React.FC = () => {
     const { user, profile } = useAuth();
-    const [ministries, setMinistries] = useState<Ministry[]>([]);
-    const [loading, setLoading] = useState(true);
     const navigation = useNavigation<NativeStackNavigationProp<AppStackParamList>>();
-
-    useEffect(() => {
-        fetchMyMinistries();
-    }, []);
-
-    const fetchMyMinistries = async () => {
-        try {
-            if (!user) return;
-
-            const { data, error } = await supabase
-                .from('ministry_members')
-                .select(`
-          ministry:ministries (
-            id,
-            name,
-            description
-          )
-        `)
-                .eq('user_id', user.id);
-
-            if (error) {
-                console.error('Error fetching ministries:', error);
-            } else if (data) {
-                const formattedMinistries = data.map((item: any) => item.ministry).filter(Boolean);
-                setMinistries(formattedMinistries);
-            }
-        } catch (error) {
-            console.error('Unexpected error:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
+    const { data: ministries = [], isLoading: loading } = useMyMinistries(user?.id);
 
     const renderMinistryItem = ({ item }: { item: Ministry }) => (
         <TouchableOpacity
