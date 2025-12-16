@@ -16,8 +16,8 @@ import { spacing, typography, borderRadius } from '../../theme';
 import { useTheme } from '../../context/ThemeContext';
 import { AppStackParamList } from '../../navigation/AppNavigator';
 import { useAuth } from '../../context/AuthContext';
-import { createInvite } from '../../services/inviteService';
-import { supabase } from '../../services/supabaseClient';
+import { useCreateInvite } from '../../hooks/queries/useInvites';
+import { useMinistries } from '../../hooks/queries/useMinistries';
 
 type NavigationProp = NativeStackNavigationProp<AppStackParamList, 'CreateInvite'>;
 
@@ -43,33 +43,13 @@ export const CreateInviteScreen: React.FC = () => {
     const { colors } = useTheme();
     const styles = React.useMemo(() => getStyles(colors), [colors]);
 
+    const { data: ministries = [], isLoading: loadingMinistries } = useMinistries();
+    const createInviteMutation = useCreateInvite();
+
     const [email, setEmail] = useState('');
     const [selectedRole, setSelectedRole] = useState<'MEMBER' | 'LEADER'>('MEMBER');
     const [selectedValidity, setSelectedValidity] = useState(30);
-    const [ministries, setMinistries] = useState<Ministry[]>([]);
     const [selectedMinistries, setSelectedMinistries] = useState<string[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [loadingMinistries, setLoadingMinistries] = useState(true);
-
-    useEffect(() => {
-        fetchMinistries();
-    }, []);
-
-    const fetchMinistries = async () => {
-        try {
-            const { data, error } = await supabase
-                .from('ministries')
-                .select('id, name')
-                .order('name', { ascending: true });
-
-            if (error) throw error;
-            setMinistries(data || []);
-        } catch (error) {
-            console.error('Error fetching ministries:', error);
-        } finally {
-            setLoadingMinistries(false);
-        }
-    };
 
     const toggleMinistry = (ministryId: string) => {
         setSelectedMinistries(prev => {
@@ -85,7 +65,7 @@ export const CreateInviteScreen: React.FC = () => {
         return emailRegex.test(email);
     };
 
-    const handleCreate = async () => {
+    const handleCreate = () => {
         if (!email.trim()) {
             Alert.alert('Erro', 'Informe o e-mail do convidado.');
             return;
@@ -101,27 +81,31 @@ export const CreateInviteScreen: React.FC = () => {
             return;
         }
 
-        setLoading(true);
-        try {
-            const invite = await createInvite({
-                email: email.trim(),
-                global_role: selectedRole,
-                ministries_default: selectedMinistries.length > 0 ? selectedMinistries : undefined,
-                validity_days: selectedValidity,
-            }, user.id);
-
-            Alert.alert(
-                'Convite Criado!',
-                `Código: ${invite.code}\n\nEnvie este código para ${email} para que ele possa se cadastrar.`,
-                [
-                    { text: 'OK', onPress: () => navigation.goBack() }
-                ]
-            );
-        } catch (error: any) {
-            Alert.alert('Erro', error.message || 'Não foi possível criar o convite.');
-        } finally {
-            setLoading(false);
-        }
+        createInviteMutation.mutate(
+            {
+                data: {
+                    email: email.trim(),
+                    global_role: selectedRole,
+                    ministries_default: selectedMinistries.length > 0 ? selectedMinistries : undefined,
+                    validity_days: selectedValidity,
+                },
+                userId: user.id
+            },
+            {
+                onSuccess: (invite) => {
+                    Alert.alert(
+                        'Convite Criado!',
+                        `Código: ${invite.code}\n\nEnvie este código para ${email} para que ele possa se cadastrar.`,
+                        [
+                            { text: 'OK', onPress: () => navigation.goBack() }
+                        ]
+                    );
+                },
+                onError: (error: any) => {
+                    Alert.alert('Erro', error.message || 'Não foi possível criar o convite.');
+                }
+            }
+        );
     };
 
     return (
@@ -226,7 +210,7 @@ export const CreateInviteScreen: React.FC = () => {
                         variant="primary"
                         fullWidth
                         onPress={handleCreate}
-                        loading={loading}
+                        loading={createInviteMutation.isPending}
                         style={styles.createButton}
                     />
 

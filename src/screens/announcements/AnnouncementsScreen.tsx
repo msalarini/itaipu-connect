@@ -10,58 +10,17 @@ import { useAuth } from '../../context/AuthContext';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AppStackParamList } from '../../navigation/AppNavigator';
-
-interface Announcement {
-    id: string;
-    title: string;
-    content: string;
-    created_at: string;
-    is_global: boolean;
-    ministry_id: string | null;
-    ministry?: {
-        name: string;
-    };
-    author: {
-        name: string;
-    };
-}
+import { useAnnouncements } from '../../hooks/queries/useAnnouncements';
+import { Announcement } from '../../types';
 
 export const AnnouncementsScreen: React.FC = () => {
     const { profile } = useAuth();
     const navigation = useNavigation<NativeStackNavigationProp<AppStackParamList>>();
-    const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { data: announcements = [], isLoading: loading } = useAnnouncements();
     const { colors } = useTheme();
     const styles = React.useMemo(() => getStyles(colors), [colors]);
 
     const canCreate = profile?.global_role === 'PASTOR' || profile?.global_role === 'LEADER';
-
-    useEffect(() => {
-        fetchAnnouncements();
-    }, []);
-
-    const fetchAnnouncements = async () => {
-        try {
-            const { data, error } = await supabase
-                .from('announcements')
-                .select(`
-          *,
-          ministry:ministries(name),
-          author:profiles(name)
-        `)
-                .order('created_at', { ascending: false });
-
-            if (error) {
-                console.error('Error fetching announcements:', error);
-            } else {
-                setAnnouncements(data as any);
-            }
-        } catch (error) {
-            console.error('Unexpected error:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const renderItem = ({ item }: { item: Announcement }) => (
         <View style={styles.card}>

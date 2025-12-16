@@ -4,7 +4,8 @@ import { useNavigation } from '@react-navigation/native';
 import { ScreenContainer, AppInput, AppButton } from '../../components';
 import { spacing, typography } from '../../theme';
 import { useTheme } from '../../context/ThemeContext';
-import { supabase } from '../../services/supabaseClient';
+import { useCreateAnnouncement } from '../../hooks/queries/useAnnouncements';
+
 import { useAuth } from '../../context/AuthContext';
 import { sendBroadcastNotification } from '../../services/notificationService';
 
@@ -17,39 +18,40 @@ export const CreateAnnouncementScreen: React.FC = () => {
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
     const [sendPush, setSendPush] = useState(false);
-    const [loading, setLoading] = useState(false);
 
-    const handleCreate = async () => {
+    const createMutation = useCreateAnnouncement();
+
+    const handleCreate = () => {
         if (!title || !content) {
             Alert.alert('Erro', 'Preencha todos os campos.');
             return;
         }
 
-        setLoading(true);
-        try {
-            const { error } = await supabase.from('announcements').insert({
+        createMutation.mutate(
+            {
                 title,
                 content,
-                author_id: profile?.id,
-                is_global: true, // Default to global for MVP. Later add ministry selector.
-                ministry_id: null,
-            });
-
-            if (error) {
-                Alert.alert('Erro ao criar aviso', error.message);
-            } else {
-                if (sendPush) {
-                    await sendBroadcastNotification(title, content);
+                author_id: profile?.id!,
+                is_global: true,
+                ministry_id: null
+            },
+            {
+                onSuccess: async () => {
+                    if (sendPush) {
+                        try {
+                            await sendBroadcastNotification(title, content);
+                        } catch (error) {
+                            console.error('Push notification error:', error);
+                        }
+                    }
+                    Alert.alert('Sucesso', 'Aviso publicado com sucesso!');
+                    navigation.goBack();
+                },
+                onError: (error: any) => {
+                    Alert.alert('Erro ao criar aviso', error.message);
                 }
-                Alert.alert('Sucesso', 'Aviso publicado com sucesso!');
-                navigation.goBack();
             }
-        } catch (error) {
-            console.error(error);
-            Alert.alert('Erro', 'Ocorreu um erro inesperado.');
-        } finally {
-            setLoading(false);
-        }
+        );
     };
 
     return (
@@ -88,7 +90,7 @@ export const CreateAnnouncementScreen: React.FC = () => {
                         title="Publicar Aviso"
                         variant="primary"
                         onPress={handleCreate}
-                        loading={loading}
+                        loading={createMutation.isPending}
                         style={styles.button}
                     />
 

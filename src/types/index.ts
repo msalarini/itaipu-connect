@@ -112,7 +112,7 @@ export interface Invite {
     email: string;
     code: string;
     global_role: GlobalRole;
-    ministries_default?: string[]; // IDs
+    ministries_default?: string[] | null; // IDs
     created_by?: string;
     expires_at: string;
     used_at?: string | null;

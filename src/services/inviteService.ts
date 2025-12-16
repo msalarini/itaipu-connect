@@ -1,16 +1,7 @@
 import { supabase } from './supabaseClient';
+import { Invite } from '../types';
 
-export interface Invite {
-    id: string;
-    email: string;
-    code: string;
-    global_role: 'MEMBER' | 'LEADER' | 'PASTOR';
-    ministries_default: string[] | null;
-    created_by: string;
-    expires_at: string;
-    used_at: string | null;
-    created_at: string;
-}
+export { Invite };
 
 export interface CreateInviteData {
     email: string;

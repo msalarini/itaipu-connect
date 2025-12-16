@@ -17,10 +17,9 @@ import { ScreenContainer } from '../../components';
 import { spacing, typography, borderRadius } from '../../theme';
 import { useTheme } from '../../context/ThemeContext';
 import { AppStackParamList } from '../../navigation/AppNavigator';
+import { useInvites, useDeleteInvite } from '../../hooks/queries/useInvites';
+import { Invite } from '../../types';
 import {
-    Invite,
-    listInvites,
-    deleteInvite,
     getInviteStatus,
     getTimeUntilExpiration
 } from '../../services/inviteService';
@@ -34,36 +33,11 @@ export const InvitesScreen: React.FC = () => {
     const { colors } = useTheme();
     const styles = React.useMemo(() => getStyles(colors), [colors]);
 
-    const [invites, setInvites] = useState<Invite[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
-
-    const fetchInvites = useCallback(async () => {
-        try {
-            const data = await listInvites();
-            setInvites(data);
-        } catch (error: any) {
-            Alert.alert('Erro', error.message || 'Não foi possível carregar os convites.');
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        fetchInvites();
-    }, [fetchInvites]);
-
-    useEffect(() => {
-        const unsubscribe = navigation.addListener('focus', () => {
-            fetchInvites();
-        });
-        return unsubscribe;
-    }, [navigation, fetchInvites]);
+    const { data: invites = [], isLoading: loading, refetch, isRefetching } = useInvites();
+    const deleteMutation = useDeleteInvite();
 
     const handleRefresh = () => {
-        setRefreshing(true);
-        fetchInvites();
+        refetch();
     };
 
     const handleCopyCode = async (code: string) => {
@@ -86,14 +60,15 @@ export const InvitesScreen: React.FC = () => {
                 {
                     text: 'Excluir',
                     style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            await deleteInvite(invite.id);
-                            setInvites(prev => prev.filter(i => i.id !== invite.id));
-                            Alert.alert('Sucesso', 'Convite excluído com sucesso.');
-                        } catch (error: any) {
-                            Alert.alert('Erro', error.message || 'Não foi possível excluir o convite.');
-                        }
+                    onPress: () => {
+                        deleteMutation.mutate(invite.id, {
+                            onSuccess: () => {
+                                Alert.alert('Sucesso', 'Convite excluído com sucesso.');
+                            },
+                            onError: (error: any) => {
+                                Alert.alert('Erro', error.message || 'Não foi possível excluir o convite.');
+                            }
+                        });
                     },
                 },
             ]
@@ -199,7 +174,7 @@ export const InvitesScreen: React.FC = () => {
                     ListEmptyComponent={renderEmptyList}
                     refreshControl={
                         <RefreshControl
-                            refreshing={refreshing}
+                            refreshing={isRefetching}
                             onRefresh={handleRefresh}
                             tintColor={colors.primary}
                         />

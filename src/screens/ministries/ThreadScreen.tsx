@@ -8,28 +8,13 @@ import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../services/supabaseClient';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { AttachmentPicker, AttachmentPreview, MessageAttachment } from '../../components';
+import { AttachmentPicker, AttachmentPreview, MessageAttachment as MessageAttachmentView } from '../../components';
 import { uploadAttachment, validateFile, AttachmentFile } from '../../services/storageService';
+import { useThread, useSendMessage } from '../../hooks/queries/useChat';
+
+import { Message, MessageAttachment } from '../../types';
 
 type ThreadRouteProp = RouteProp<AppStackParamList, 'Thread'>;
-
-interface MessageAttachmentData {
-    id: string;
-    file_url: string;
-    file_type: string;
-    file_name: string;
-}
-
-interface Message {
-    id: string;
-    content: string;
-    created_at: string;
-    author_id: string;
-    author: {
-        name: string;
-    };
-    attachments?: MessageAttachmentData[];
-}
 
 export const ThreadScreen: React.FC = () => {
     const route = useRoute<ThreadRouteProp>();
@@ -37,103 +22,25 @@ export const ThreadScreen: React.FC = () => {
     const { user } = useAuth();
     const { colors } = useTheme();
 
-    const [rootMessage, setRootMessage] = useState<Message | null>(null);
-    const [replies, setReplies] = useState<Message[]>([]);
+    const { data: threadData, isLoading: loading } = useThread(rootMessageId);
+    const sendMessageMutation = useSendMessage();
+
+    const rootMessage = threadData?.root;
+    const replies = threadData?.replies || [];
+
     const [newMessage, setNewMessage] = useState('');
-    const [loading, setLoading] = useState(true);
-    const [sending, setSending] = useState(false);
     const [selectedFile, setSelectedFile] = useState<AttachmentFile | null>(null);
     const [showAttachmentPicker, setShowAttachmentPicker] = useState(false);
     const styles = React.useMemo(() => getStyles(colors), [colors]);
 
     const flatListRef = useRef<FlatList>(null);
 
+    // Auto-scroll on new messages
     useEffect(() => {
-        // ... (existing logic)
-        fetchThread();
-
-        const channel = supabase
-            .channel(`thread:${rootMessageId}`)
-            .on(
-                'postgres_changes',
-                {
-                    event: 'INSERT',
-                    schema: 'public',
-                    table: 'messages',
-                    filter: `parent_message_id=eq.${rootMessageId}`,
-                },
-                (payload) => {
-                    fetchSingleReply(payload.new.id);
-                }
-            )
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [rootMessageId]);
-
-    // ... (keep all existing functions: fetchThread, fetchSingleReply, handleSelectFile, handleSendMessage, renderMessageItem)
-    const fetchThread = async () => {
-        try {
-            const { data: rootData, error: rootError } = await supabase
-                .from('messages')
-                .select(`
-          id,
-          content,
-          created_at,
-          author_id,
-          author:profiles(name),
-          attachments:message_attachments(id, file_url, file_type, file_name)
-        `)
-                .eq('id', rootMessageId)
-                .single();
-
-            if (rootError) throw rootError;
-            setRootMessage(rootData as any);
-
-            const { data: repliesData, error: repliesError } = await supabase
-                .from('messages')
-                .select(`
-          id,
-          content,
-          created_at,
-          author_id,
-          author:profiles(name),
-          attachments:message_attachments(id, file_url, file_type, file_name)
-        `)
-                .eq('parent_message_id', rootMessageId)
-                .order('created_at', { ascending: true });
-
-            if (repliesError) throw repliesError;
-            setReplies(repliesData as any);
-
-        } catch (error) {
-            console.error('Error fetching thread:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const fetchSingleReply = async (messageId: string) => {
-        const { data, error } = await supabase
-            .from('messages')
-            .select(`
-        id,
-        content,
-        created_at,
-        author_id,
-        author:profiles(name),
-        attachments:message_attachments(id, file_url, file_type, file_name)
-      `)
-            .eq('id', messageId)
-            .single();
-
-        if (!error && data) {
-            setReplies((prev) => [...prev, data as any]);
+        if (replies.length > 0) {
             setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
         }
-    };
+    }, [replies.length]);
 
     const handleSelectFile = async (file: AttachmentFile) => {
         try {
@@ -147,22 +54,13 @@ export const ThreadScreen: React.FC = () => {
     const handleSendMessage = async () => {
         if ((!newMessage.trim() && !selectedFile) || !user) return;
 
-        setSending(true);
         try {
-            const { data: messageData, error: messageError } = await supabase
-                .from('messages')
-                .insert({
-                    ministry_id: ministryId,
-                    author_id: user.id,
-                    content: newMessage.trim() || '(anexo)',
-                    parent_message_id: rootMessageId,
-                })
-                .select()
-                .single();
-
-            if (messageError || !messageData) {
-                throw new Error('Erro ao criar mensagem');
-            }
+            const messageData = await sendMessageMutation.mutateAsync({
+                ministryId,
+                authorId: user.id,
+                content: newMessage.trim(),
+                parentMessageId: rootMessageId,
+            });
 
             if (selectedFile) {
                 const uploadResult = await uploadAttachment(selectedFile, messageData.id, ministryId);
@@ -186,8 +84,6 @@ export const ThreadScreen: React.FC = () => {
         } catch (error: any) {
             console.error('Error sending reply:', error);
             Alert.alert('Erro', error.message || 'Não foi possível enviar a resposta');
-        } finally {
-            setSending(false);
         }
     };
 
@@ -219,7 +115,7 @@ export const ThreadScreen: React.FC = () => {
                     )}
 
                     {attachment && (
-                        <MessageAttachment
+                        <MessageAttachmentView
                             url={attachment.file_url}
                             type={attachment.file_type as 'image' | 'document'}
                             filename={attachment.file_name}
@@ -286,9 +182,9 @@ export const ThreadScreen: React.FC = () => {
                 <TouchableOpacity
                     style={[styles.sendButton, (!newMessage.trim() && !selectedFile) && styles.sendButtonDisabled]}
                     onPress={handleSendMessage}
-                    disabled={(!newMessage.trim() && !selectedFile) || sending}
+                    disabled={(!newMessage.trim() && !selectedFile) || sendMessageMutation.isPending}
                 >
-                    {sending ? (
+                    {sendMessageMutation.isPending ? (
                         <ActivityIndicator size="small" color={colors.white} />
                     ) : (
                         <Text style={styles.sendButtonText}>Enviar</Text>
