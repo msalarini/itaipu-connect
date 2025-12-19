@@ -1,13 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Alert, Share } from 'react-native';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { AppStackParamList } from '../../navigation/AppNavigator';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ScreenContainer, AppButton } from '../../components';
 import { spacing, typography, borderRadius } from '../../theme';
 import { useTheme } from '../../context/ThemeContext';
 import { supabase } from '../../services/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useMinistryMembers, useUpdateMemberRole, useRemoveMember } from '../../hooks/queries/useMinistries';
 
 type MinistryMembersRouteProp = RouteProp<AppStackParamList, 'MinistryMembers'>;
 
@@ -31,47 +32,14 @@ export const MinistryMembersScreen: React.FC = () => {
 
     const isPastor = profile?.global_role === 'PASTOR';
 
-    const [members, setMembers] = useState<Member[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [currentUserRole, setCurrentUserRole] = useState<'MEMBER' | 'LEADER' | null>(null);
+    const { data: members = [], isLoading: loading } = useMinistryMembers(ministryId);
+    const updateRoleMutation = useUpdateMemberRole();
+    const removeMemberMutation = useRemoveMember();
 
-    useEffect(() => {
-        fetchMembers();
-    }, []);
-
-    const fetchMembers = async () => {
-        try {
-            const { data, error } = await supabase
-                .from('ministry_members')
-                .select(`
-          id,
-          user_id,
-          ministry_role,
-          profile:profiles (
-            name,
-            email
-          )
-        `)
-                .eq('ministry_id', ministryId)
-                .order('ministry_role', { ascending: true }); // LEADER comes before MEMBER alphabetically? No, L < M. So Leader first.
-
-            if (error) {
-                console.error('Error fetching members:', error);
-            } else {
-                setMembers(data as any);
-
-                // Determine current user's role in this ministry
-                const myMembership = data.find((m: any) => m.user_id === user?.id);
-                if (myMembership) {
-                    setCurrentUserRole(myMembership.ministry_role);
-                }
-            }
-        } catch (error) {
-            console.error('Unexpected error:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
+    const currentUserRole = React.useMemo(() => {
+        const membership = members.find((m: any) => m.user_id === user?.id);
+        return membership?.ministry_role || null;
+    }, [members, user?.id]);
 
     const handleGenerateInvite = async () => {
         try {
@@ -161,16 +129,12 @@ export const MinistryMembersScreen: React.FC = () => {
 
     const handleChangeRole = async (member: Member, newRole: 'MEMBER' | 'LEADER') => {
         try {
-            const { error } = await supabase
-                .from('ministry_members')
-                .update({ ministry_role: newRole })
-                .eq('ministry_id', ministryId)
-                .eq('user_id', member.user_id);
-
-            if (error) throw error;
-
+            await updateRoleMutation.mutateAsync({
+                ministryId,
+                userId: member.user_id,
+                newRole
+            });
             Alert.alert('Sucesso', `${member.profile.name} agora é ${newRole === 'LEADER' ? 'Líder' : 'Membro'}.`);
-            fetchMembers();
         } catch (error: any) {
             Alert.alert('Erro', error.message);
         }
@@ -187,16 +151,11 @@ export const MinistryMembersScreen: React.FC = () => {
                     style: 'destructive',
                     onPress: async () => {
                         try {
-                            const { error } = await supabase
-                                .from('ministry_members')
-                                .delete()
-                                .eq('ministry_id', ministryId)
-                                .eq('user_id', member.user_id);
-
-                            if (error) throw error;
-
+                            await removeMemberMutation.mutateAsync({
+                                ministryId,
+                                userId: member.user_id
+                            });
                             Alert.alert('Sucesso', `${member.profile.name} foi removido do ministério.`);
-                            fetchMembers();
                         } catch (error: any) {
                             Alert.alert('Erro', error.message);
                         }

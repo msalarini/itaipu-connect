@@ -138,3 +138,87 @@ export function useSendMessage() {
         },
     });
 }
+
+export const MINISTRY_MESSAGES_QUERY_KEY = (ministryId: string) => ['ministry_messages', ministryId];
+
+async function fetchMinistryMessages(ministryId: string) {
+    const { data, error } = await supabase
+        .from('messages')
+        .select(`
+            id,
+            content,
+            created_at,
+            author_id,
+            author:profiles(name),
+            attachments:message_attachments(id, file_url, file_type, file_name),
+            reactions:message_reactions(emoji, user_id)
+        `)
+        .eq('ministry_id', ministryId)
+        .is('parent_message_id', null)
+        .order('created_at', { ascending: true });
+
+    if (error) throw error;
+
+    return data as any as Message[];
+}
+
+export function useMinistryMessages(ministryId: string) {
+    const queryClient = useQueryClient();
+
+    const query = useQuery({
+        queryKey: MINISTRY_MESSAGES_QUERY_KEY(ministryId),
+        queryFn: () => fetchMinistryMessages(ministryId),
+        enabled: !!ministryId,
+    });
+
+    useEffect(() => {
+        if (!ministryId) return;
+
+        const channel = supabase
+            .channel(`ministry_messages:${ministryId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'messages',
+                    filter: `ministry_id=eq.${ministryId}`,
+                },
+                async (payload) => {
+                    // Only care about root messages for this view.
+                    // Note: Supabase filter might not catch "is parent_message_id null" easily in realtime filter string,
+                    // so we filter in the callback or query.
+                    if (payload.new.parent_message_id) return;
+
+                    const { data, error } = await supabase
+                        .from('messages')
+                        .select(`
+                            id,
+                            content,
+                            created_at,
+                            author_id,
+                            author:profiles(name),
+                            attachments:message_attachments(id, file_url, file_type, file_name),
+                            reactions:message_reactions(emoji, user_id)
+                        `)
+                        .eq('id', payload.new.id)
+                        .single();
+
+                    if (!error && data) {
+                        queryClient.setQueryData(MINISTRY_MESSAGES_QUERY_KEY(ministryId), (oldData: Message[] | undefined) => {
+                            if (!oldData) return [data as any as Message];
+                            if (oldData.some(m => m.id === data.id)) return oldData;
+                            return [...oldData, data as any as Message];
+                        });
+                    }
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [ministryId, queryClient]);
+
+    return query;
+}

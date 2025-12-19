@@ -6,11 +6,13 @@ import { AppStackParamList } from '../../navigation/AppNavigator';
 import { colors, spacing, typography, borderRadius } from '../../theme';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
-import { supabase } from '../../services/supabaseClient';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { AttachmentPicker, AttachmentPreview, MessageAttachment } from '../../components';
+import { AttachmentPicker, AttachmentPreview, MessageAttachment as MessageAttachmentView } from '../../components';
 import { uploadAttachment, validateFile, AttachmentFile } from '../../services/storageService';
+import { useMinistryMessages, useSendMessage } from '../../hooks/queries/useChat';
+import { useQueryClient } from '@tanstack/react-query';
+import { supabase } from '../../services/supabaseClient';
 
 type MinistryChannelRouteProp = RouteProp<AppStackParamList, 'MinistryChannel'>;
 type MinistryChannelNavigationProp = NativeStackNavigationProp<AppStackParamList, 'MinistryChannel'>;
@@ -25,100 +27,21 @@ export const MinistryChannelScreen: React.FC = () => {
     const { colors } = useTheme();
     const styles = React.useMemo(() => getStyles(colors), [colors]);
 
-    const [messages, setMessages] = useState<Message[]>([]);
+    const { data: messages = [], isLoading: loading } = useMinistryMessages(ministryId);
+    const sendMessageMutation = useSendMessage();
+    const queryClient = useQueryClient();
+
     const [newMessage, setNewMessage] = useState('');
-    const [loading, setLoading] = useState(true);
-    const [sending, setSending] = useState(false);
     const [selectedFile, setSelectedFile] = useState<AttachmentFile | null>(null);
     const [showAttachmentPicker, setShowAttachmentPicker] = useState(false);
     const flatListRef = useRef<FlatList>(null);
 
-    // ... (useEffect and fetch functions remain the same)
-
+    // Auto-scroll to bottom when messages change
     useEffect(() => {
-        fetchMessages();
-
-        // Subscribe to new messages
-        const channel = supabase
-            .channel(`ministry_messages:${ministryId}`)
-            .on(
-                'postgres_changes',
-                {
-                    event: 'INSERT',
-                    schema: 'public',
-                    table: 'messages',
-                    filter: `ministry_id=eq.${ministryId}`,
-                },
-                (payload) => {
-                    fetchSingleMessage(payload.new.id);
-                }
-            )
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [ministryId]);
-
-    const fetchMessages = async () => {
-        try {
-            const { data, error } = await supabase
-                .from('messages')
-                .select(`
-          id,
-          content,
-          created_at,
-          author_id,
-          author:profiles(name),
-          attachments:message_attachments(id, file_url, file_type, file_name),
-          reactions:message_reactions(emoji, user_id)
-        `)
-                .eq('ministry_id', ministryId)
-                .is('parent_message_id', null)
-                .order('created_at', { ascending: true });
-
-            if (error) {
-                console.error('Error fetching messages:', error);
-            } else {
-                setMessages(data as any);
-            }
-        } catch (error) {
-            console.error('Unexpected error:', error);
-        } finally {
-            setLoading(false);
+        if (messages.length > 0) {
+            setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
         }
-    };
-
-    const fetchSingleMessage = async (messageId: string, isUpdate = false) => {
-        const { data, error } = await supabase
-            .from('messages')
-            .select(`
-        id,
-        content,
-        created_at,
-        author_id,
-        author:profiles(name),
-        attachments:message_attachments(id, file_url, file_type, file_name),
-        reactions:message_reactions(emoji, user_id)
-      `)
-            .eq('id', messageId)
-            .single();
-
-        if (!error && data) {
-            setMessages((prev) => {
-                const exists = prev.find(m => m.id === messageId);
-                if (exists) {
-                    return prev.map(m => m.id === messageId ? data as any : m);
-                }
-                return [...prev, data as any];
-            });
-            if (!isUpdate) {
-                setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
-            }
-        }
-    };
-
-    // ... (handleSelectFile, handleSendMessage, handleToggleReaction remain the same)
+    }, [messages.length]);
 
     const handleSelectFile = async (file: AttachmentFile) => {
         try {
@@ -132,22 +55,14 @@ export const MinistryChannelScreen: React.FC = () => {
     const handleSendMessage = async () => {
         if ((!newMessage.trim() && !selectedFile) || !user) return;
 
-        setSending(true);
         try {
-            // 1. Criar mensagem primeiro
-            const { data: messageData, error: messageError } = await supabase
-                .from('messages')
-                .insert({
-                    ministry_id: ministryId,
-                    author_id: user.id,
-                    content: newMessage.trim() || '(anexo)',
-                })
-                .select()
-                .single();
-
-            if (messageError || !messageData) {
-                throw new Error('Erro ao criar mensagem');
-            }
+            // 1. Criar mensagem usando mutation
+            const messageData = await sendMessageMutation.mutateAsync({
+                ministryId,
+                authorId: user.id,
+                content: newMessage.trim(),
+                parentMessageId: undefined, // undefined sends as NULL for optional param? Or explicit null? Supabase expects optional or null.
+            });
 
             // 2. Se há anexo, fazer upload
             if (selectedFile) {
@@ -174,8 +89,6 @@ export const MinistryChannelScreen: React.FC = () => {
         } catch (error: any) {
             console.error('Error sending message:', error);
             Alert.alert('Erro', error.message || 'Não foi possível enviar a mensagem');
-        } finally {
-            setSending(false);
         }
     };
 
@@ -211,8 +124,10 @@ export const MinistryChannelScreen: React.FC = () => {
                     });
             }
 
-            // Refresh this message specifically to get latest state
-            fetchSingleMessage(messageId, true);
+            // Invalidate query to refetch messages (or this specific message if we had a fine-grained cache)
+            // Ideally we would update the cache optimistically or refetch just the affected message.
+            // Since useMinistryMessages fetches all, let's invalidate it.
+            queryClient.invalidateQueries({ queryKey: ['ministry_messages', ministryId] });
 
         } catch (error) {
             console.error('Error toggling reaction:', error);
@@ -260,7 +175,7 @@ export const MinistryChannelScreen: React.FC = () => {
                     )}
 
                     {attachment && (
-                        <MessageAttachment
+                        <MessageAttachmentView
                             url={attachment.file_url}
                             type={attachment.file_type as 'image' | 'document'}
                             filename={attachment.file_name}
@@ -351,9 +266,9 @@ export const MinistryChannelScreen: React.FC = () => {
                 <TouchableOpacity
                     style={[styles.sendButton, (!newMessage.trim() && !selectedFile) && styles.sendButtonDisabled]}
                     onPress={handleSendMessage}
-                    disabled={(!newMessage.trim() && !selectedFile) || sending}
+                    disabled={(!newMessage.trim() && !selectedFile) || sendMessageMutation.isPending}
                 >
-                    {sending ? (
+                    {sendMessageMutation.isPending ? (
                         <ActivityIndicator size="small" color={colors.text} />
                     ) : (
                         <Text style={styles.sendButtonText}>Enviar</Text>
