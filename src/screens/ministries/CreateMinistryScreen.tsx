@@ -8,7 +8,7 @@ import { spacing, typography } from '../../theme';
 import { useTheme } from '../../context/ThemeContext';
 import { AppStackParamList } from '../../navigation/AppNavigator';
 import { useAuth } from '../../context/AuthContext';
-import { createMinistry } from '../../services/ministryService';
+import { useCreateMinistry } from '../../hooks/queries/useMinistries';
 
 type NavigationProp = NativeStackNavigationProp<AppStackParamList, 'CreateMinistry'>;
 
@@ -20,7 +20,8 @@ export const CreateMinistryScreen: React.FC = () => {
 
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
-    const [loading, setLoading] = useState(false);
+
+    const createMinistryMutation = useCreateMinistry();
 
     const handleCreate = async () => {
         if (!name.trim()) {
@@ -33,16 +34,16 @@ export const CreateMinistryScreen: React.FC = () => {
             return;
         }
 
-        setLoading(true);
         try {
-            await createMinistry({ name, description }, user.id);
+            await createMinistryMutation.mutateAsync({
+                data: { name, description },
+                userId: user.id
+            });
             Alert.alert('Sucesso', 'Ministério criado com sucesso!', [
                 { text: 'OK', onPress: () => navigation.goBack() }
             ]);
         } catch (error: any) {
             Alert.alert('Erro', error.message || 'Não foi possível criar o ministério.');
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -76,7 +77,7 @@ export const CreateMinistryScreen: React.FC = () => {
                         variant="primary"
                         fullWidth
                         onPress={handleCreate}
-                        loading={loading}
+                        loading={createMinistryMutation.isPending}
                         style={styles.createButton}
                     />
 

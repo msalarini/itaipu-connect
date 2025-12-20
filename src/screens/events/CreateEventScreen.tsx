@@ -7,10 +7,9 @@ import { format } from 'date-fns';
 import { ScreenContainer, AppInput, AppButton } from '../../components';
 import { spacing, typography, borderRadius } from '../../theme';
 import { useTheme } from '../../context/ThemeContext';
-import { supabase } from '../../services/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
-import { listMinistries } from '../../services/ministryService';
-import { Ministry } from '../../types';
+import { useMinistries } from '../../hooks/queries/useMinistries';
+import { useCreateEvent } from '../../hooks/queries/useEvents';
 
 export const CreateEventScreen: React.FC = () => {
     const navigation = useNavigation();
@@ -28,36 +27,18 @@ export const CreateEventScreen: React.FC = () => {
     const [showTimePicker, setShowTimePicker] = useState(false);
 
     // Ministry State
-    const [ministries, setMinistries] = useState<Ministry[]>([]);
-    const [selectedMinistryId, setSelectedMinistryId] = useState<string | null>(null);
-    const [loadingMinistries, setLoadingMinistries] = useState(false);
-
-    const [loading, setLoading] = useState(false);
-
     const canSelectMinistry = profile?.global_role === 'LEADER' || profile?.global_role === 'PASTOR' || profile?.role === 'admin';
+    const { data: ministries = [], isLoading: loadingMinistries } = useMinistries();
+    const createEventMutation = useCreateEvent();
 
+    const [selectedMinistryId, setSelectedMinistryId] = useState<string | null>(null);
+
+    // Default to leader ministry if applicable
     useEffect(() => {
-        if (canSelectMinistry) {
-            fetchMinistries();
+        if (canSelectMinistry && profile?.leader_ministry_id && !selectedMinistryId) {
+            setSelectedMinistryId(profile.leader_ministry_id);
         }
-    }, [canSelectMinistry]);
-
-    const fetchMinistries = async () => {
-        setLoadingMinistries(true);
-        try {
-            const data = await listMinistries();
-            setMinistries(data);
-
-            // If user is a leader of a specific ministry, default to it?
-            if (profile?.leader_ministry_id) {
-                setSelectedMinistryId(profile.leader_ministry_id);
-            }
-        } catch (error) {
-            console.error('Failed to load ministries', error);
-        } finally {
-            setLoadingMinistries(false);
-        }
-    };
+    }, [canSelectMinistry, profile?.leader_ministry_id]);
 
     const handleCreate = async () => {
         if (!title || !location) {
@@ -65,28 +46,21 @@ export const CreateEventScreen: React.FC = () => {
             return;
         }
 
-        setLoading(true);
         try {
-            const { error } = await supabase.from('events').insert({
+            await createEventMutation.mutateAsync({
                 title,
                 description,
                 location,
                 event_date: date.toISOString(),
-                created_by: profile?.id,
+                created_by: profile?.id!,
                 ministry_id: selectedMinistryId === 'global' ? null : selectedMinistryId
             });
 
-            if (error) {
-                Alert.alert('Erro ao criar evento', error.message);
-            } else {
-                Alert.alert('Sucesso', 'Evento criado com sucesso!');
-                navigation.goBack();
-            }
+            Alert.alert('Sucesso', 'Evento criado com sucesso!');
+            navigation.goBack();
         } catch (error: any) {
             console.error(error);
-            Alert.alert('Erro', 'Ocorreu um erro inesperado: ' + error.message);
-        } finally {
-            setLoading(false);
+            Alert.alert('Erro', 'Ocorreu um erro inesperado: ' + (error.message || 'Erro desconhecido'));
         }
     };
 
@@ -225,7 +199,7 @@ export const CreateEventScreen: React.FC = () => {
                         title="Criar Evento"
                         variant="primary"
                         onPress={handleCreate}
-                        loading={loading}
+                        loading={createEventMutation.isPending}
                         style={styles.button}
                     />
 

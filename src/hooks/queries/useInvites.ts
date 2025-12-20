@@ -32,3 +32,25 @@ export function useDeleteInvite() {
         },
     });
 }
+
+// --- Invite Validation ---
+
+import { supabase } from '../../services/supabaseClient';
+
+async function validateInvite(code: string) {
+    const { data, error } = await supabase.rpc(
+        'check_invite_code',
+        { invite_code: code }
+    );
+
+    if (error) throw error;
+    if (!data) throw new Error('Código de convite inválido ou expirado.');
+
+    return data;
+}
+
+export function useValidateInvite() {
+    return useMutation({
+        mutationFn: validateInvite
+    });
+}

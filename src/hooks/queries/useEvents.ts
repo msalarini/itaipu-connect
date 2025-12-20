@@ -45,3 +45,29 @@ export function useRSVPMutation() {
         },
     });
 }
+
+// --- Mutations ---
+
+import { supabase } from '../../services/supabaseClient';
+
+async function createEvent(eventData: Omit<Event, 'id' | 'created_at' | 'status'>) {
+    const { data, error } = await supabase
+        .from('events')
+        .insert(eventData)
+        .select()
+        .single();
+
+    if (error) throw error;
+    return data;
+}
+
+export function useCreateEvent() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: createEvent,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: EVENTS_QUERY_KEY });
+        },
+    });
+}

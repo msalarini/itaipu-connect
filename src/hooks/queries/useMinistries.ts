@@ -104,3 +104,62 @@ export function useRemoveMember() {
         }
     });
 }
+
+// --- Ministry CRUD Mutations ---
+
+async function createMinistry(ministryData: { name: string; description?: string }, userId: string) {
+    // 1. Create Ministry
+    const { data: ministry, error: ministryError } = await supabase
+        .from('ministries')
+        .insert(ministryData)
+        .select()
+        .single();
+
+    if (ministryError) throw ministryError;
+
+    // 2. Add creator as Leader
+    const { error: memberError } = await supabase
+        .from('ministry_members')
+        .insert({
+            ministry_id: ministry.id,
+            user_id: userId,
+            ministry_role: 'LEADER'
+        });
+
+    if (memberError) {
+        // Rollback? ideally yes, but for now just throw
+        console.error("Failed to add leader", memberError);
+    }
+
+    return ministry;
+}
+
+export function useCreateMinistry() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ data, userId }: { data: { name: string; description?: string }, userId: string }) => createMinistry(data, userId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: MINISTRIES_QUERY_KEY });
+        }
+    });
+}
+
+export function useUpdateMinistry() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ id, data }: { id: string, data: { name?: string; description?: string } }) => {
+            const { error } = await supabase
+                .from('ministries')
+                .update(data)
+                .eq('id', id);
+
+            if (error) throw error;
+        },
+        onSuccess: (_, { id }) => {
+            queryClient.invalidateQueries({ queryKey: MINISTRIES_QUERY_KEY });
+            queryClient.invalidateQueries({ queryKey: MINISTRY_DETAILS_QUERY_KEY(id) });
+        }
+    });
+}

@@ -7,6 +7,7 @@ import { spacing, typography } from '../../theme';
 import { useTheme } from '../../context/ThemeContext';
 import { supabase } from '../../services/supabaseClient';
 import { RootStackParamList } from '../../navigation/RootNavigator';
+import { useValidateInvite } from '../../hooks/queries/useInvites';
 
 type InviteRegisterScreenNavigationProp = NativeStackNavigationProp<
     RootStackParamList,
@@ -25,6 +26,8 @@ export const InviteRegisterScreen: React.FC = () => {
     const [name, setName] = useState('');
     const [loading, setLoading] = useState(false);
 
+    const validateInviteMutation = useValidateInvite();
+
     const handleRegister = async () => {
         if (!email || !code || !password || !confirmPassword || !name) {
             Alert.alert('Erro', 'Preencha todos os campos.');
@@ -39,17 +42,8 @@ export const InviteRegisterScreen: React.FC = () => {
         setLoading(true);
 
         try {
-            // 1. Validar código de convite via RPC
-            const { data: inviteData, error: inviteError } = await supabase.rpc(
-                'check_invite_code',
-                { invite_code: code }
-            );
-
-            if (inviteError || !inviteData) {
-                Alert.alert('Erro', 'Código de convite inválido ou expirado.');
-                setLoading(false);
-                return;
-            }
+            // 1. Validar código de convite
+            const inviteData = await validateInviteMutation.mutateAsync(code);
 
             // 2. Criar usuário no Auth (com metadados para o trigger)
             const { data: authData, error: authError } = await supabase.auth.signUp({

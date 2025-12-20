@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -6,7 +6,8 @@ import { ScreenContainer, AppInput, AppButton } from '../../components';
 import { spacing, typography, borderRadius } from '../../theme';
 import { useTheme } from '../../context/ThemeContext';
 import { AppStackParamList } from '../../navigation/AppNavigator';
-import { getMinistryById, updateMinistry, deleteMinistry } from '../../services/ministryService';
+import { deleteMinistry } from '../../services/ministryService';
+import { useMinistryDetails, useUpdateMinistry } from '../../hooks/queries/useMinistries';
 
 type NavigationProp = NativeStackNavigationProp<AppStackParamList, 'EditMinistry'>;
 type EditMinistryRouteProp = RouteProp<AppStackParamList, 'EditMinistry'>;
@@ -20,31 +21,19 @@ export const EditMinistryScreen: React.FC = () => {
 
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
 
-    useEffect(() => {
-        fetchMinistry();
-    }, [ministryId]);
+    // Hooks
+    const { data: ministry, isLoading: loadingData } = useMinistryDetails(ministryId);
+    const updateMinistryMutation = useUpdateMinistry();
 
-    const fetchMinistry = async () => {
-        try {
-            const ministry = await getMinistryById(ministryId);
-            if (ministry) {
-                setName(ministry.name);
-                setDescription(ministry.description || '');
-            } else {
-                Alert.alert('Erro', 'Ministério não encontrado.', [
-                    { text: 'OK', onPress: () => navigation.goBack() }
-                ]);
-            }
-        } catch (error: any) {
-            Alert.alert('Erro', error.message);
-        } finally {
-            setLoading(false);
+    // Populate data when loaded
+    React.useEffect(() => {
+        if (ministry) {
+            setName(ministry.name);
+            setDescription(ministry.description || '');
         }
-    };
+    }, [ministry]);
 
     const handleSave = async () => {
         if (!name.trim()) {
@@ -52,16 +41,16 @@ export const EditMinistryScreen: React.FC = () => {
             return;
         }
 
-        setSaving(true);
         try {
-            await updateMinistry(ministryId, { name, description });
+            await updateMinistryMutation.mutateAsync({
+                id: ministryId,
+                data: { name, description }
+            });
             Alert.alert('Sucesso', 'Ministério atualizado com sucesso!', [
                 { text: 'OK', onPress: () => navigation.goBack() }
             ]);
         } catch (error: any) {
             Alert.alert('Erro', error.message || 'Não foi possível atualizar o ministério.');
-        } finally {
-            setSaving(false);
         }
     };
 
@@ -92,7 +81,7 @@ export const EditMinistryScreen: React.FC = () => {
         );
     };
 
-    if (loading) {
+    if (loadingData) {
         return (
             <ScreenContainer>
                 <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
@@ -127,7 +116,7 @@ export const EditMinistryScreen: React.FC = () => {
                         variant="primary"
                         fullWidth
                         onPress={handleSave}
-                        loading={saving}
+                        loading={updateMinistryMutation.isPending}
                         style={styles.saveButton}
                     />
 
