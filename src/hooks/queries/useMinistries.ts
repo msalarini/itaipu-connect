@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { listMinistries, listUserMinistries, getMinistryById } from '../../services/ministryService';
+import { getUsersNotInMinistry, addMemberToMinistry } from '../../services/memberService';
 import { Ministry } from '../../types';
 
 export const MINISTRIES_QUERY_KEY = ['ministries'];
@@ -160,6 +161,34 @@ export function useUpdateMinistry() {
         onSuccess: (_, { id }) => {
             queryClient.invalidateQueries({ queryKey: MINISTRIES_QUERY_KEY });
             queryClient.invalidateQueries({ queryKey: MINISTRY_DETAILS_QUERY_KEY(id) });
+        }
+    });
+}
+
+// --- Add Member Hooks ---
+
+export const AVAILABLE_USERS_QUERY_KEY = (ministryId: string, search: string) => ['ministries', ministryId, 'available_users', search];
+
+export function useAvailableUsers(ministryId: string, search: string = '') {
+    return useQuery({
+        queryKey: AVAILABLE_USERS_QUERY_KEY(ministryId, search),
+        queryFn: () => getUsersNotInMinistry(ministryId, search),
+        enabled: !!ministryId,
+    });
+}
+
+export function useAddMember() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ ministryId, userId, role }: { ministryId: string, userId: string, role: 'MEMBER' | 'LEADER' }) => {
+            await addMemberToMinistry(ministryId, userId, role);
+        },
+        onSuccess: (_, { ministryId }) => {
+            // Invalidate members list so they appear in the main list
+            queryClient.invalidateQueries({ queryKey: MINISTRY_MEMBERS_QUERY_KEY(ministryId) });
+            // Invalidate available users so the added user disappears from search
+            queryClient.invalidateQueries({ queryKey: ['ministries', ministryId, 'available_users'] });
         }
     });
 }

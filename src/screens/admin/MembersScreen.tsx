@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, FlatList, Alert, TouchableOpacity, TextInput, ActivityIndicator, ActionSheetIOS, Platform } from 'react-native';
 import { ScreenContainer, AppInput } from '../../components';
 import { spacing, typography, borderRadius } from '../../theme';
 import { useTheme } from '../../context/ThemeContext';
 import { Member, memberService } from '../../services/memberService';
+import { useAllUsers, useUpdateGlobalRole } from '../../hooks/queries/useAdminMembers';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigation } from '@react-navigation/native';
 
@@ -13,41 +14,23 @@ export const MembersScreen: React.FC = () => {
     const { colors } = useTheme();
     const styles = React.useMemo(() => getStyles(colors), [colors]);
 
-    const [members, setMembers] = useState<Member[]>([]);
-    const [filteredMembers, setFilteredMembers] = useState<Member[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
-    const [loading, setLoading] = useState(true);
+    const [updatingRole, setUpdatingRole] = useState<string | null>(null);
+
+    // Hooks
+    const { data: members = [], isLoading: loading, refetch } = useAllUsers();
+    const updateRoleMutation = useUpdateGlobalRole();
 
     const isPastor = myProfile?.global_role === 'PASTOR';
 
-    useEffect(() => {
-        loadMembers();
-    }, []);
-
-    useEffect(() => {
-        if (!searchQuery) {
-            setFilteredMembers(members);
-        } else {
-            const query = searchQuery.toLowerCase();
-            const filtered = members.filter(m =>
-                m.name.toLowerCase().includes(query) ||
-                m.email.toLowerCase().includes(query)
-            );
-            setFilteredMembers(filtered);
-        }
-    }, [searchQuery, members]);
-
-    const loadMembers = async () => {
-        try {
-            const data = await memberService.listAllMembers();
-            setMembers(data);
-            setFilteredMembers(data);
-        } catch (error: any) {
-            Alert.alert('Erro', 'Não foi possível carregar a lista de membros.');
-        } finally {
-            setLoading(false);
-        }
-    };
+    const filteredMembers = React.useMemo(() => {
+        if (!searchQuery) return members;
+        const query = searchQuery.toLowerCase();
+        return members.filter(m =>
+            m.name.toLowerCase().includes(query) ||
+            m.email.toLowerCase().includes(query)
+        );
+    }, [members, searchQuery]);
 
     const handleRoleChange = (member: Member) => {
         if (!isPastor) return;
@@ -106,7 +89,7 @@ export const MembersScreen: React.FC = () => {
                     onPress: async () => {
                         try {
                             await memberService.deleteMember(member.id);
-                            setMembers(prev => prev.filter(m => m.id !== member.id));
+                            refetch();
                             Alert.alert('Sucesso', 'Membro removido com sucesso.');
                         } catch (error: any) {
                             Alert.alert('Erro', 'Falha ao remover membro: ' + error.message);
@@ -119,8 +102,10 @@ export const MembersScreen: React.FC = () => {
 
     const updateRole = async (member: Member, newRole: 'MEMBER' | 'LEADER' | 'PASTOR') => {
         try {
-            await memberService.updateMemberRole(member.id, newRole);
-            setMembers(prev => prev.map(m => m.id === member.id ? { ...m, global_role: newRole } : m));
+            await updateRoleMutation.mutateAsync({
+                userId: member.id,
+                newRole
+            });
             Alert.alert('Sucesso', 'Cargo atualizado com sucesso.');
         } catch (error: any) {
             Alert.alert('Erro', 'Falha ao atualizar cargo: ' + error.message);
@@ -181,6 +166,8 @@ export const MembersScreen: React.FC = () => {
                     keyExtractor={item => item.id}
                     renderItem={renderItem}
                     contentContainerStyle={styles.list}
+                    refreshing={loading}
+                    onRefresh={refetch}
                     ListEmptyComponent={
                         <Text style={styles.emptyText}>Nenhum membro encontrado.</Text>
                     }
