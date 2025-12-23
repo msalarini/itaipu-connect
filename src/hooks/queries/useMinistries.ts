@@ -167,6 +167,24 @@ export function useUpdateMinistry() {
 
 // --- Add Member Hooks ---
 
+export function useDeleteMinistry() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (id: string) => {
+            const { error } = await supabase
+                .from('ministries')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: MINISTRIES_QUERY_KEY });
+        }
+    });
+}
+
 export const AVAILABLE_USERS_QUERY_KEY = (ministryId: string, search: string) => ['ministries', ministryId, 'available_users', search];
 
 export function useAvailableUsers(ministryId: string, search: string = '') {

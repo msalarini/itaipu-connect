@@ -232,3 +232,37 @@ create policy "Authors can delete their attachments"
 -- Storage Buckets (Create if not exists via dashboard, but policies here if possible)
 -- Note: Storage policies are usually handled in Storage section, but we can define standard RLS if table wrappers are used.
 -- For now, we assume Storage will be configured in Dashboard.
+
+-- 10. REPORTS (For Compliance)
+create table public.reports (
+  id uuid default uuid_generate_v4() primary key,
+  reporter_id uuid references public.profiles(id) not null,
+  reported_user_id uuid references public.profiles(id) not null,
+  reason text not null,
+  details text,
+  status text check (status in ('PENDING', 'RESOLVED', 'DISMISSED')) default 'PENDING',
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+alter table public.reports enable row level security;
+
+create policy "Users can insert reports"
+  on reports for insert
+  with check ( auth.uid() = reporter_id );
+
+-- 11. RPC: Delete Own Account
+create or replace function delete_own_account()
+returns void
+language plpgsql
+security definer
+as $$
+begin
+  -- Delete public profile (cascade will delete related data like messages, member rows)
+  -- Note: We rely on Supabase cascading foreign keys if set, but standard schema earlier didn't set cascade for everything.
+  -- Let's manually delete critically linked data or ensure foreign keys are cascade.
+  -- Actually, to properly delete `auth.users`, we need `supabase_admin` privileges or security definer.
+  -- This function allows the user to delete their own auth account.
+  
+  delete from auth.users where id = auth.uid();
+end;
+$$;

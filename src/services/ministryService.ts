@@ -2,75 +2,10 @@ import { supabase } from './supabaseClient';
 
 import { Ministry } from '../types';
 
-export interface CreateMinistryData {
-    name: string;
-    description?: string;
-}
 
-export interface UpdateMinistryData {
-    name: string;
-    description?: string;
-}
 
-/**
- * Create a new ministry
- */
-export async function createMinistry(data: CreateMinistryData, userId: string): Promise<Ministry> {
-    const { data: ministry, error } = await supabase
-        .from('ministries')
-        .insert({
-            name: data.name.trim(),
-            description: data.description?.trim() || null,
-            created_by: userId,
-        })
-        .select()
-        .single();
+// Unused create/update/delete functions removed.
 
-    if (error) {
-        console.error('Error creating ministry:', error);
-        throw new Error(error.message);
-    }
-
-    return ministry;
-}
-
-/**
- * Update an existing ministry
- */
-export async function updateMinistry(id: string, data: UpdateMinistryData): Promise<Ministry> {
-    const { data: ministry, error } = await supabase
-        .from('ministries')
-        .update({
-            name: data.name.trim(),
-            description: data.description?.trim() || null,
-            updated_at: new Date().toISOString(),
-        })
-        .eq('id', id)
-        .select()
-        .single();
-
-    if (error) {
-        console.error('Error updating ministry:', error);
-        throw new Error(error.message);
-    }
-
-    return ministry;
-}
-
-/**
- * Delete a ministry
- */
-export async function deleteMinistry(id: string): Promise<void> {
-    const { error } = await supabase
-        .from('ministries')
-        .delete()
-        .eq('id', id);
-
-    if (error) {
-        console.error('Error deleting ministry:', error);
-        throw new Error(error.message);
-    }
-}
 
 /**
  * Get a ministry by ID

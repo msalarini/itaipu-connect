@@ -6,8 +6,7 @@ import { ScreenContainer, AppInput, AppButton } from '../../components';
 import { spacing, typography, borderRadius } from '../../theme';
 import { useTheme } from '../../context/ThemeContext';
 import { AppStackParamList } from '../../navigation/AppNavigator';
-import { deleteMinistry } from '../../services/ministryService';
-import { useMinistryDetails, useUpdateMinistry } from '../../hooks/queries/useMinistries';
+import { useMinistryDetails, useUpdateMinistry, useDeleteMinistry } from '../../hooks/queries/useMinistries';
 
 type NavigationProp = NativeStackNavigationProp<AppStackParamList, 'EditMinistry'>;
 type EditMinistryRouteProp = RouteProp<AppStackParamList, 'EditMinistry'>;
@@ -26,6 +25,7 @@ export const EditMinistryScreen: React.FC = () => {
     // Hooks
     const { data: ministry, isLoading: loadingData } = useMinistryDetails(ministryId);
     const updateMinistryMutation = useUpdateMinistry();
+    const deleteMinistryMutation = useDeleteMinistry();
 
     // Populate data when loaded
     React.useEffect(() => {
@@ -64,16 +64,13 @@ export const EditMinistryScreen: React.FC = () => {
                     text: 'Excluir',
                     style: 'destructive',
                     onPress: async () => {
-                        setDeleting(true);
                         try {
-                            await deleteMinistry(ministryId);
+                            await deleteMinistryMutation.mutateAsync(ministryId);
                             Alert.alert('Sucesso', 'Ministério excluído com sucesso!', [
                                 { text: 'OK', onPress: () => navigation.navigate('MainTabs') }
                             ]);
                         } catch (error: any) {
                             Alert.alert('Erro', error.message || 'Não foi possível excluir o ministério.');
-                        } finally {
-                            setDeleting(false);
                         }
                     },
                 },

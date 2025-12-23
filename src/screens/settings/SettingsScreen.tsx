@@ -5,12 +5,15 @@ import { useAuth } from '../../context/AuthContext';
 import { ScreenContainer } from '../../components';
 import { spacing, typography, borderRadius } from '../../theme';
 import Constants from 'expo-constants';
-import { supabase } from '../../services/supabaseClient';
+import { Linking } from 'react-native';
+import { useUpdateProfile, useDeleteAccount } from '../../hooks/queries/useProfile';
 
 export const SettingsScreen: React.FC = () => {
     const { theme, toggleTheme, colors } = useTheme();
     const { signOut, user, profile, refreshProfile } = useAuth();
     const styles = React.useMemo(() => getStyles(colors), [colors]);
+
+    const updateProfileMutation = useUpdateProfile();
 
     const handleSignOut = () => {
         Alert.alert(
@@ -25,6 +28,55 @@ export const SettingsScreen: React.FC = () => {
                 }
             ]
         );
+    };
+
+    const handlePushNotificationToggle = async (value: boolean) => {
+        if (!user || !profile) return;
+
+        try {
+            const updatedPreferences = {
+                ...profile.preferences,
+                push_notifications: value
+            };
+
+            await updateProfileMutation.mutateAsync({
+                userId: user.id,
+                updates: { preferences: updatedPreferences }
+            });
+
+            if (refreshProfile) await refreshProfile();
+        } catch (error) {
+            Alert.alert('Erro', 'Não foi possível atualizar as preferências.');
+            console.error(error);
+        }
+    };
+
+    const deleteAccountMutation = useDeleteAccount();
+
+    const handleDeleteAccount = () => {
+        Alert.alert(
+            'Excluir Conta',
+            'Tem certeza absoluta? Esta ação é irreversível e excluirá todos os seus dados.',
+            [
+                { text: 'Cancelar', style: 'cancel' },
+                {
+                    text: 'Excluir Minha Conta',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await deleteAccountMutation.mutateAsync();
+                            signOut();
+                        } catch (error: any) {
+                            Alert.alert('Erro', error.message || 'Falha ao excluir conta.');
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
+    const openLegalUrl = (url: string) => {
+        Linking.openURL(url).catch(err => console.error("Couldn't load page", err));
     };
 
     return (
@@ -63,34 +115,25 @@ export const SettingsScreen: React.FC = () => {
                         </View>
                         <Switch
                             value={profile?.preferences?.push_notifications ?? true}
-                            onValueChange={async (value) => {
-                                try {
-                                    // Optimistic update (handled by refreshProfile usually, but for switch visual we might want local state if context is slow)
-                                    // But context-based is safer for truth.
-                                    // Let's assume we trigger update.
-
-                                    const updatedPreferences = {
-                                        ...profile?.preferences,
-                                        push_notifications: value
-                                    };
-
-                                    const { error } = await supabase
-                                        .from('profiles')
-                                        .update({ preferences: updatedPreferences })
-                                        .eq('id', user?.id);
-
-                                    if (error) throw error;
-
-                                    if (refreshProfile) await refreshProfile();
-                                } catch (error) {
-                                    Alert.alert('Erro', 'Não foi possível atualizar as preferências.');
-                                    console.error(error);
-                                }
-                            }}
+                            onValueChange={handlePushNotificationToggle}
                             trackColor={{ false: colors.border, true: colors.primary }}
                             thumbColor={colors.white}
                         />
                     </View>
+                </View>
+
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>LEGAL</Text>
+
+                    <TouchableOpacity style={styles.row} onPress={() => openLegalUrl('https://example.com/terms')}>
+                        <Text style={styles.rowLabel}>Termos de Uso</Text>
+                        <Text style={styles.chevron}>›</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.row} onPress={() => openLegalUrl('https://example.com/privacy')}>
+                        <Text style={styles.rowLabel}>Política de Privacidade</Text>
+                        <Text style={styles.chevron}>›</Text>
+                    </TouchableOpacity>
                 </View>
 
                 <View style={styles.section}>
@@ -105,6 +148,13 @@ export const SettingsScreen: React.FC = () => {
 
                     <TouchableOpacity style={styles.row} onPress={handleSignOut}>
                         <Text style={styles.signOutText}>Sair da Conta</Text>
+                    </TouchableOpacity>
+                </View>
+
+                <View style={[styles.section, { borderColor: colors.error }]}>
+                    <Text style={[styles.sectionTitle, { color: colors.error }]}>ZONA DE PERIGO</Text>
+                    <TouchableOpacity style={styles.row} onPress={handleDeleteAccount}>
+                        <Text style={{ ...styles.rowLabel, color: colors.error }}>Excluir Conta</Text>
                     </TouchableOpacity>
                 </View>
 
@@ -178,5 +228,9 @@ const getStyles = (colors: any) => StyleSheet.create({
         fontSize: typography.sizes.xs,
         color: colors.textMuted,
         marginTop: spacing.lg,
+    },
+    chevron: {
+        fontSize: 20,
+        color: colors.textMuted,
     },
 });

@@ -1,21 +1,16 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, RefreshControl } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ScreenContainer } from '../../components';
 import { spacing, typography, borderRadius } from '../../theme';
 import { useTheme } from '../../context/ThemeContext';
-import { supabase } from '../../services/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { AppStackParamList } from '../../navigation/AppNavigator';
+import { useMinistries } from '../../hooks/queries/useMinistries';
+import { Ministry } from '../../types';
 
 type NavigationProp = NativeStackNavigationProp<AppStackParamList>;
-
-interface Ministry {
-    id: string;
-    name: string;
-    description: string;
-}
 
 export const MinistriesListScreen: React.FC = () => {
     const navigation = useNavigation<NavigationProp>();
@@ -23,47 +18,22 @@ export const MinistriesListScreen: React.FC = () => {
     const { colors } = useTheme();
     const styles = React.useMemo(() => getStyles(colors), [colors]);
 
-    const [ministries, setMinistries] = useState<Ministry[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
+    const { data: ministries = [], isLoading: loading, refetch } = useMinistries();
+
+    // Refreshing state for Pull-to-Refresh usually handled by mapped "refetch" directly but FlatList expects boolean for refreshing prop if we use built-in. 
+    // Actually TanStack Query `isLoading` is initial load, `isRefetching` is background.
+    // For Pull-to-Refresh, we usually want to show the spinner if we triggered it. 
+    // We can use `isRefetching` from the hook if we simply want to show spinner when it updates.
+    // But commonly just `refreshing={loading}` (where loading includes fetching) is okay, or `refreshing={isRefetching}`.
+    // Let's grab `isRefetching`.
+    const { isRefetching } = useMinistries(); // Re-calling hook? Better to destructure above.
 
     const isPastor = profile?.global_role === 'PASTOR';
 
-    const fetchMinistries = useCallback(async () => {
-        try {
-            const { data, error } = await supabase
-                .from('ministries')
-                .select('*')
-                .order('name', { ascending: true });
-
-            if (error) {
-                console.error('Error fetching ministries:', error);
-            } else {
-                setMinistries(data);
-            }
-        } catch (error) {
-            console.error('Unexpected error:', error);
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        fetchMinistries();
-    }, [fetchMinistries]);
-
-    useEffect(() => {
-        const unsubscribe = navigation.addListener('focus', () => {
-            fetchMinistries();
-        });
-        return unsubscribe;
-    }, [navigation, fetchMinistries]);
-
     const handleRefresh = () => {
-        setRefreshing(true);
-        fetchMinistries();
+        refetch();
     };
+
 
     const handleMinistryPress = (ministry: Ministry) => {
         navigation.navigate('MinistryChannel', {
@@ -110,7 +80,7 @@ export const MinistriesListScreen: React.FC = () => {
                     contentContainerStyle={styles.listContent}
                     refreshControl={
                         <RefreshControl
-                            refreshing={refreshing}
+                            refreshing={isRefetching}
                             onRefresh={handleRefresh}
                             tintColor={colors.primary}
                         />

@@ -9,6 +9,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { supabase } from '../../services/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { useMinistryMembers, useUpdateMemberRole, useRemoveMember } from '../../hooks/queries/useMinistries';
+import { useReportUser } from '../../hooks/queries/useReports';
 
 type MinistryMembersRouteProp = RouteProp<AppStackParamList, 'MinistryMembers'>;
 
@@ -90,39 +91,73 @@ export const MinistryMembersScreen: React.FC = () => {
         }
     };
 
-    const handleMemberActions = (member: Member) => {
-        // Don't allow actions on yourself
-        if (member.user_id === user?.id) {
-            Alert.alert('Ação não permitida', 'Você não pode modificar sua própria participação.');
-            return;
-        }
+    const reportUserMutation = useReportUser();
 
-        // Only LEADER or PASTOR can manage members
-        if (currentUserRole !== 'LEADER' && !isPastor) {
-            return;
-        }
-
-        const actions: { text: string; onPress?: () => void; style?: 'cancel' | 'destructive' }[] = [
-            { text: 'Cancelar', style: 'cancel' },
+    const handleReportMember = (member: Member) => {
+        const reportOptions = [
+            'Conteúdo Ofensivo',
+            'Spam',
+            'Comportamento Abusivo',
+            'Outro'
         ];
 
-        if (member.ministry_role === 'MEMBER') {
+        Alert.alert(
+            'Denunciar Usuário',
+            `Por qual motivo você deseja denunciar ${member.profile.name}?`,
+            [
+                ...reportOptions.map(reason => ({
+                    text: reason,
+                    onPress: async () => {
+                        try {
+                            await reportUserMutation.mutateAsync({
+                                reporterId: user!.id,
+                                reportedUserId: member.user_id,
+                                reason: reason
+                            });
+                            Alert.alert('Denúncia Enviada', 'Agradecemos por ajudar a manter a comunidade segura.');
+                        } catch (error: any) {
+                            Alert.alert('Erro', 'Falha ao enviar denúncia.');
+                        }
+                    }
+                })),
+                { text: 'Cancelar', style: 'cancel' }
+            ]
+        );
+    };
+
+    const handleMemberActions = (member: Member) => {
+        // Can't act on yourself
+        if (member.user_id === user?.id) return;
+
+        const actions: { text: string; onPress?: () => void; style?: 'cancel' | 'destructive' | 'default' }[] = [
+            { text: 'Cancelar', style: 'cancel' },
+            {
+                text: 'Denunciar',
+                style: 'destructive', // Visually distinct
+                onPress: () => handleReportMember(member),
+            }
+        ];
+
+        // Only LEADER/PASTOR can manage roles/removal
+        if (canManageMembers) {
+            if (member.ministry_role === 'MEMBER') {
+                actions.push({
+                    text: 'Promover para Líder',
+                    onPress: () => handleChangeRole(member, 'LEADER'),
+                });
+            } else {
+                actions.push({
+                    text: 'Rebaixar para Membro',
+                    onPress: () => handleChangeRole(member, 'MEMBER'),
+                });
+            }
+
             actions.push({
-                text: 'Promover para Líder',
-                onPress: () => handleChangeRole(member, 'LEADER'),
-            });
-        } else {
-            actions.push({
-                text: 'Rebaixar para Membro',
-                onPress: () => handleChangeRole(member, 'MEMBER'),
+                text: 'Remover do Ministério',
+                style: 'destructive',
+                onPress: () => handleRemoveMember(member),
             });
         }
-
-        actions.push({
-            text: 'Remover do Ministério',
-            style: 'destructive',
-            onPress: () => handleRemoveMember(member),
-        });
 
         Alert.alert(member.profile.name, 'O que deseja fazer?', actions);
     };
@@ -171,8 +206,6 @@ export const MinistryMembersScreen: React.FC = () => {
         <TouchableOpacity
             style={styles.card}
             onPress={() => handleMemberActions(item)}
-            disabled={!canManageMembers}
-            activeOpacity={canManageMembers ? 0.7 : 1}
         >
             <View style={styles.avatarPlaceholder}>
                 <Text style={styles.avatarText}>{item.profile.name.substring(0, 2).toUpperCase()}</Text>
@@ -184,7 +217,7 @@ export const MinistryMembersScreen: React.FC = () => {
                 </Text>
                 <Text style={styles.memberRole}>{item.ministry_role === 'LEADER' ? 'Líder' : 'Membro'}</Text>
             </View>
-            {canManageMembers && item.user_id !== user?.id && (
+            {item.user_id !== user?.id && (
                 <Text style={styles.actionHint}>⋮</Text>
             )}
         </TouchableOpacity>

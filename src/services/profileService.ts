@@ -37,5 +37,17 @@ export const profileService = {
         }
 
         return data;
+    },
+
+    /**
+     * Delete own account
+     */
+    async deleteAccount(): Promise<void> {
+        const { error } = await supabase.rpc('delete_own_account');
+
+        if (error) {
+            console.error('Error deleting account:', error);
+            throw error;
+        }
     }
 };
