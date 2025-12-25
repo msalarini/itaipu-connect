@@ -34,31 +34,11 @@ export function useMyMinistries(userId?: string) {
 
 import { supabase } from '../../services/supabaseClient';
 
+// --- Members Hooks ---
+
+import { listMinistryMembers } from '../../services/ministryService';
+
 export const MINISTRY_MEMBERS_QUERY_KEY = (ministryId: string) => ['ministries', ministryId, 'members'];
-
-async function listMinistryMembers(ministryId: string) {
-    const { data, error } = await supabase
-        .from('ministry_members')
-        .select(`
-            id,
-            user_id,
-            ministry_role,
-            profile:profiles (
-                name,
-                email
-            )
-        `)
-        .eq('ministry_id', ministryId)
-        .order('ministry_role', { ascending: true }); // LEADER implies 'L', MEMBER implies 'M' -> Leader first if ascending? Yes L < M.
-
-    if (error) throw error;
-
-    // Supabase might return profile as an array for the join, flatten it to object
-    return data.map((m: any) => ({
-        ...m,
-        profile: Array.isArray(m.profile) ? m.profile[0] : m.profile
-    }));
-}
 
 export function useMinistryMembers(ministryId: string) {
     return useQuery({

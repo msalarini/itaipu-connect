@@ -109,8 +109,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     };
 
     const signIn = async () => {
-        // A lógica de sign in específica (email/password) é feita nos componentes
-        // Aqui apenas garantimos que o estado seja atualizado via onAuthStateChange
+        // Implementation note: The actual sign-in UI (email/password inputs) usually calls supabase.auth.signInWithPassword directly.
+        // ideally, we should expose a wrapper here to keep supabase contained, e.g., signInWithEmail(email, password).
+        // Since we are refactoring, let's keep it as is but mark as deprecated or strictly for session refresh if that was the intent.
+        // However, the interface says `signIn: () => Promise<void>`, which implies no args.
+        // It's likely unused or a placeholder. Let's remove it to avoid confusion or implement a real one if we change the interface.
+        // For now, let's leave a clear comment that this is handled by components, or if we want to be strict, we'd add args.
+        // Given constraints, I'll assume current screens use supabase directly for now.
+        // TODO: Refactor LoginScreen to use a robust signIn(email, password) from context.
     };
 
     const signOut = async () => {

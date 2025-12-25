@@ -9,6 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import { AppStackParamList } from '../../navigation/AppNavigator';
 import { useMinistries } from '../../hooks/queries/useMinistries';
 import { Ministry } from '../../types';
+import { MinistryCard } from '../../components/MinistryCard';
 
 type NavigationProp = NativeStackNavigationProp<AppStackParamList>;
 
@@ -18,15 +19,7 @@ export const MinistriesListScreen: React.FC = () => {
     const { colors } = useTheme();
     const styles = React.useMemo(() => getStyles(colors), [colors]);
 
-    const { data: ministries = [], isLoading: loading, refetch } = useMinistries();
-
-    // Refreshing state for Pull-to-Refresh usually handled by mapped "refetch" directly but FlatList expects boolean for refreshing prop if we use built-in. 
-    // Actually TanStack Query `isLoading` is initial load, `isRefetching` is background.
-    // For Pull-to-Refresh, we usually want to show the spinner if we triggered it. 
-    // We can use `isRefetching` from the hook if we simply want to show spinner when it updates.
-    // But commonly just `refreshing={loading}` (where loading includes fetching) is okay, or `refreshing={isRefetching}`.
-    // Let's grab `isRefetching`.
-    const { isRefetching } = useMinistries(); // Re-calling hook? Better to destructure above.
+    const { data: ministries = [], isLoading: loading, refetch, isRefetching } = useMinistries();
 
     const isPastor = profile?.global_role === 'PASTOR';
 
@@ -42,25 +35,13 @@ export const MinistriesListScreen: React.FC = () => {
         });
     };
 
+
     const renderMinistryItem = ({ item }: { item: Ministry }) => (
-        <TouchableOpacity
-            style={styles.card}
-            onPress={() => handleMinistryPress(item)}
-            activeOpacity={0.7}
-        >
-            <View style={styles.cardHeader}>
-                <View style={styles.avatarPlaceholder}>
-                    <Text style={styles.avatarText}>{item.name.substring(0, 2).toUpperCase()}</Text>
-                </View>
-                <View style={styles.cardContent}>
-                    <Text style={styles.cardTitle}>{item.name}</Text>
-                    <Text style={styles.cardDescription} numberOfLines={2}>
-                        {item.description || 'Sem descrição'}
-                    </Text>
-                </View>
-                <Text style={styles.chevron}>›</Text>
-            </View>
-        </TouchableOpacity>
+        <MinistryCard
+            ministry={item}
+            onPress={handleMinistryPress}
+            colors={colors}
+        />
     );
 
     return (
@@ -131,50 +112,6 @@ const getStyles = (colors: any) => StyleSheet.create({
     listContent: {
         padding: spacing.lg,
         paddingBottom: 100,
-    },
-    card: {
-        backgroundColor: colors.backgroundCard,
-        borderRadius: borderRadius.lg,
-        padding: spacing.md,
-        marginBottom: spacing.md,
-        borderWidth: 1,
-        borderColor: colors.border,
-    },
-    cardHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    avatarPlaceholder: {
-        width: 48,
-        height: 48,
-        borderRadius: borderRadius.full,
-        backgroundColor: colors.primary,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: spacing.md,
-    },
-    avatarText: {
-        color: colors.white,
-        fontWeight: typography.weights.bold,
-        fontSize: typography.sizes.lg,
-    },
-    cardContent: {
-        flex: 1,
-    },
-    cardTitle: {
-        fontSize: typography.sizes.lg,
-        fontWeight: typography.weights.semibold,
-        color: colors.text,
-    },
-    cardDescription: {
-        fontSize: typography.sizes.sm,
-        color: colors.textSecondary,
-        marginTop: spacing.xs,
-    },
-    chevron: {
-        fontSize: 24,
-        color: colors.textMuted,
-        marginLeft: spacing.sm,
     },
     emptyContainer: {
         padding: spacing.xl,
